@@ -69,6 +69,7 @@ nbproject/
 cmake-build-debug/*
 cmake-build-debug-coverage/*
 cmake-build-debug-event-trace/*
+cmake-build-debug-visual-studio/*
 coverage-report/
 
 #
