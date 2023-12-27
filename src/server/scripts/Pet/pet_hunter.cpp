@@ -25,6 +25,7 @@
 #include "CreatureAIImpl.h"
 #include "ScriptedCreature.h"
 #include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "SpellAuraEffects.h"
 #include "TemporarySummon.h"
 

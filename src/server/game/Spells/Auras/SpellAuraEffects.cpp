@@ -636,7 +636,7 @@ void AuraEffect::CalculatePeriodic(Unit* caster, bool create, bool load)
     {
         // Apply periodic time mod
         if (modOwner)
-            modOwner->ApplySpellMod<SPELLMOD_ACTIVATION_TIME>(GetId(), m_amplitude);
+            modOwner->ApplySpellMod(GetId(), SPELLMOD_ACTIVATION_TIME, m_amplitude);
 
         if (caster)
         {
@@ -6840,7 +6840,6 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
     }
 
     int32 dmg = damage;
-    int32 mitigatedDamage = cleanDamage.mitigated_damage;
     if (CanApplyResilience())
     {
         int32 resilienceReduction = dmg;
@@ -6848,16 +6847,16 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
 
         resilienceReduction = dmg - resilienceReduction;
         dmg -= resilienceReduction;
-        mitigatedDamage += resilienceReduction;
+        cleanDamage.mitigated_damage += resilienceReduction;
     }
 
-    DamageInfo dmgInfo(caster, target, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, BASE_ATTACK, cleanDamage.mitigated_damage);
+    DamageInfo damageInfo(caster, target, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, BASE_ATTACK);
 
-    Unit::CalcAbsorbResist(dmgInfo);
+    Unit::CalcAbsorbResist(damageInfo);
 
-    uint32 absorb = dmgInfo.GetAbsorb();
-    uint32 resist = dmgInfo.GetResist();
-    damage = dmgInfo.GetDamage();
+    uint32 absorb = damageInfo.GetAbsorb();
+    uint32 resist = damageInfo.GetResist();
+    damage = damageInfo.GetDamage();
 
     LOG_DEBUG("spells.aura.effect", "PeriodicTick: {} attacked {} for {} dmg inflicted by {} abs is {}",
                     GetCasterGUID().ToString(), target->GetGUID().ToString(), damage, GetId(), absorb);
@@ -6866,7 +6865,7 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
     // Set trigger flag
     uint32 procAttacker = PROC_FLAG_DONE_PERIODIC;
     uint32 procVictim   = PROC_FLAG_TAKEN_PERIODIC;
-    uint32 hitMask = dmgInfo.GetHitMask();
+    uint32 hitMask = damageInfo.GetHitMask();
     if (absorb > 0)
         hitMask |= PROC_HIT_ABSORB;
 
@@ -6886,7 +6885,7 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
     Unit::DealDamage(caster, target, damage, &cleanDamage, DOT, GetSpellInfo()->GetSchoolMask(), GetSpellInfo(), true);
 
     // allow null caster to call this function
-    caster->ProcSkillsAndAuras(target, caster ? procAttacker : 0, procVictim, PROC_SPELL_TYPE_DAMAGE, PROC_SPELL_PHASE_NONE, hitMask, nullptr, &dmgInfo, nullptr);
+    caster->ProcSkillsAndAuras(target, caster ? procAttacker : 0, procVictim, PROC_SPELL_TYPE_DAMAGE, PROC_SPELL_PHASE_NONE, hitMask, nullptr, &damageInfo, nullptr);
 }
 
 void AuraEffect::HandlePeriodicHealthLeechAuraTick(Unit* target, Unit* caster) const
@@ -6933,7 +6932,6 @@ void AuraEffect::HandlePeriodicHealthLeechAuraTick(Unit* target, Unit* caster) c
     }
 
     int32 dmg = damage;
-    int32 cleanDamageAmount = cleanDamage.mitigated_damage;
     if (CanApplyResilience())
     {
         int32 resilienceReduction = dmg;
@@ -6941,36 +6939,36 @@ void AuraEffect::HandlePeriodicHealthLeechAuraTick(Unit* target, Unit* caster) c
 
         resilienceReduction = dmg - resilienceReduction;
         dmg -= resilienceReduction;
-        cleanDamageAmount += resilienceReduction;
+        cleanDamage.mitigated_damage += resilienceReduction;
     }
 
-    DamageInfo dmgInfo(caster, target, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, BASE_ATTACK, cleanDamage.mitigated_damage);
+    DamageInfo damageInfo(caster, target, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, GetSpellInfo()->GetAttackType());
 
-    Unit::CalcAbsorbResist(dmgInfo);
+    Unit::CalcAbsorbResist(damageInfo);
 
-    uint32 absorb = dmgInfo.GetAbsorb();
-    uint32 resist = dmgInfo.GetResist();
-    damage = dmgInfo.GetDamage();
+    uint32 absorb = damageInfo.GetAbsorb();
+    uint32 resist = damageInfo.GetResist();
+    damage = damageInfo.GetDamage();
 
     // Set trigger flag
     uint32 procAttacker = PROC_FLAG_DONE_PERIODIC;
     uint32 procVictim   = PROC_FLAG_TAKEN_PERIODIC;
-    uint32 hitMask = dmgInfo.GetHitMask();
+    uint32 hitMask = damageInfo.GetHitMask();
     if (absorb > 0)
         hitMask |= PROC_HIT_ABSORB;
 
-    if (dmgInfo.GetDamage())
+    if (damageInfo.GetDamage())
     {
         procVictim |= PROC_FLAG_TAKEN_DAMAGE;
         hitMask |= crit ? PROC_HIT_CRITICAL : PROC_HIT_NORMAL;
     }
 
-    if (target->GetHealth() < dmgInfo.GetDamage())
+    if (target->GetHealth() < damageInfo.GetDamage())
     {
-        dmgInfo.ModifyDamage(dmgInfo.GetDamage() - target->GetHealth());
+        damageInfo.ModifyDamage(damageInfo.GetDamage() - target->GetHealth());
     }
 
-    damage = dmgInfo.GetDamage();
+    damage = damageInfo.GetDamage();
 
     LOG_DEBUG("spells.aura.effect", "PeriodicTick: {} health leech of {} for {} dmg inflicted by {} abs is {}",
                     GetCasterGUID().ToString(), target->GetGUID().ToString(), damage, GetId(), absorb);
@@ -6982,7 +6980,7 @@ void AuraEffect::HandlePeriodicHealthLeechAuraTick(Unit* target, Unit* caster) c
     new_damage = Unit::DealDamage(caster, target, damage, &cleanDamage, DOT, GetSpellInfo()->GetSchoolMask(), GetSpellInfo(), false);
 
     // allow null caster to call this function
-    caster->ProcSkillsAndAuras(target, caster ? procAttacker : 0, procVictim, PROC_SPELL_TYPE_DAMAGE, PROC_SPELL_PHASE_HIT, hitMask, nullptr, &dmgInfo, nullptr);
+    caster->ProcSkillsAndAuras(target, caster ? procAttacker : 0, procVictim, PROC_SPELL_TYPE_DAMAGE, PROC_SPELL_PHASE_HIT, hitMask, nullptr, &damageInfo, nullptr);
 
     if (!caster || !caster->IsAlive())
         return;

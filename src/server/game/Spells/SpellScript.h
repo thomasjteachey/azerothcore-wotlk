@@ -817,11 +817,6 @@ public:
     // where function is: bool function (ProcEventInfo& eventInfo);
     HookList<CheckProcHandler> DoCheckProc;
 #define AuraCheckProcFn(F) CheckProcHandlerFunction(&F)
-    // executed when aura checks if it can proc
-    // example: DoAfterCheckProc += AuraCheckProcFn(class::function);
-    // where function is: bool function (ProcEventInfo& eventInfo);
-    HookList<AfterCheckProcHandler> DoAfterCheckProc;
-#define AuraAfterCheckProcFn(F) AfterCheckProcHandlerFunction(&F)
 
     // executed when aura effect checks if it can proc the aura
     // example: DoCheckEffectProc += AuraCheckEffectProcFn(class::function, EffectIndexSpecifier, EffectAuraNameSpecifier);

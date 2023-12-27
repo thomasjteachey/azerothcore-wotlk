@@ -528,7 +528,7 @@ float SpellEffectInfo::CalcValueMultiplier(Unit* caster, Spell* spell) const
 {
     float multiplier = ValueMultiplier;
     if (Player* modOwner = (caster ? caster->GetSpellModOwner() : nullptr))
-        modOwner->ApplySpellMod<SPELLMOD_VALUE_MULTIPLIER>(_spellInfo->Id, multiplier, spell);
+        modOwner->ApplySpellMod(_spellInfo->Id, SPELLMOD_VALUE_MULTIPLIER, multiplier, spell);
     return multiplier;
 }
 
@@ -536,7 +536,7 @@ float SpellEffectInfo::CalcDamageMultiplier(Unit* caster, Spell* spell) const
 {
     float multiplier = DamageMultiplier;
     if (Player* modOwner = (caster ? caster->GetSpellModOwner() : nullptr))
-        modOwner->ApplySpellMod<SPELLMOD_DAMAGE_MULTIPLIER>(_spellInfo->Id, multiplier, spell);
+        modOwner->ApplySpellMod(_spellInfo->Id, SPELLMOD_DAMAGE_MULTIPLIER, multiplier, spell);
     return multiplier;
 }
 
@@ -556,7 +556,7 @@ float SpellEffectInfo::CalcRadius(Unit* caster, Spell* spell) const
         radius += RadiusEntry->RadiusPerLevel * caster->GetLevel();
         radius = std::min(radius, RadiusEntry->RadiusMax);
         if (Player* modOwner = caster->GetSpellModOwner())
-            modOwner->ApplySpellMod<SPELLMOD_RADIUS>(_spellInfo->Id, radius, spell);
+            modOwner->ApplySpellMod(_spellInfo->Id, SPELLMOD_RADIUS, radius, spell);
     }
 
     return radius;
@@ -2329,7 +2329,7 @@ float SpellInfo::GetMaxRange(bool positive, Unit* caster, Spell* spell) const
         range = RangeEntry->RangeMax[0];
     if (caster)
         if (Player* modOwner = caster->GetSpellModOwner())
-            modOwner->ApplySpellMod<SPELLMOD_RANGE>(Id, range, spell);
+            modOwner->ApplySpellMod(Id, SPELLMOD_RANGE, range, spell);
     return range;
 }
 
@@ -2464,7 +2464,7 @@ int32 SpellInfo::CalcPowerCost(Unit const* caster, SpellSchoolMask schoolMask, S
 
     // Apply cost mod by spell
     if (Player* modOwner = caster->GetSpellModOwner())
-        modOwner->ApplySpellMod<SPELLMOD_COST>(Id, powerCost, spell);
+        modOwner->ApplySpellMod(Id, SPELLMOD_COST, powerCost, spell);
 
     if (!caster->IsControlledByPlayer())
     {
@@ -2930,4 +2930,34 @@ bool SpellInfo::CheckElixirStacking(Unit const* caster) const
     }
 
     return true;
+}
+
+WeaponAttackType SpellInfo::GetAttackType() const
+{
+    WeaponAttackType result;
+
+    switch (DmgClass)
+    {
+        case SPELL_DAMAGE_CLASS_MELEE:
+            if (HasAttribute(SPELL_ATTR3_REQUIRES_OFF_HAND_WEAPON))
+                result = OFF_ATTACK;
+            else
+                result = BASE_ATTACK;
+
+            break;
+        case SPELL_DAMAGE_CLASS_RANGED:
+            result = IsRangedWeaponSpell() ? RANGED_ATTACK : BASE_ATTACK;
+
+            break;
+        default:
+            // Wands
+            if (IsAutoRepeatRangedSpell())
+                result = RANGED_ATTACK;
+            else
+                result = BASE_ATTACK;
+
+            break;
+    }
+
+    return result;
 }

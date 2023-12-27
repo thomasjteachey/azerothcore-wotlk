@@ -67,10 +67,11 @@ struct npc_pet_pri_shadowfiend : public PetAI
             AttackStart(target);
     }
 
-    void IsSummonedBy(Unit* summoner) override
+    void IsSummonedBy(WorldObject* summoner) override
     {
-        if (summoner->HasAura(SPELL_PRIEST_GLYPH_OF_SHADOWFIEND))
-            DoCastAOE(SPELL_PRIEST_SHADOWFIEND_DEATH);
+        if (Unit* unit = summoner->ToUnit())
+            if (unit->HasAura(SPELL_PRIEST_GLYPH_OF_SHADOWFIEND))
+                DoCastAOE(SPELL_PRIEST_SHADOWFIEND_DEATH);
     }
 };
 

@@ -777,8 +777,9 @@ private:
     DamageInfo(DamageInfo const& dmg1, DamageInfo const& dmg2);
 
 public:
-    DamageInfo(Unit* attacker, Unit* victim, uint32 damage, SpellInfo const* spellInfo, SpellSchoolMask schoolMask, DamageEffectType damageType, WeaponAttackType attackType, uint32 cleanDamage = 0);
-    explicit DamageInfo(CalcDamageInfo& dmgInfo);
+    DamageInfo(Unit* attacker, Unit* victim, uint32 damage, SpellInfo const* spellInfo, SpellSchoolMask schoolMask, DamageEffectType damageType, WeaponAttackType attackType);
+    explicit DamageInfo(CalcDamageInfo const& dmgInfo); // amalgamation wrapper
+    DamageInfo(CalcDamageInfo const& dmgInfo, uint8 damageIndex);
     DamageInfo(SpellNonMeleeDamage const& spellNonMeleeDamage, DamageEffectType damageType, WeaponAttackType attackType, uint32 hitMask);
 
     void ModifyDamage(int32 amount);
@@ -1553,6 +1554,10 @@ public:
     static void DealDamageMods(Unit const* victim, uint32& damage, uint32* absorb);
     static uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage = nullptr, DamageEffectType damagetype = DIRECT_DAMAGE, SpellSchoolMask damageSchoolMask = SPELL_SCHOOL_MASK_NORMAL, SpellInfo const* spellProto = nullptr, bool durabilityLoss = true, bool allowGM = false, Spell const* spell = nullptr);
     static void Kill(Unit* killer, Unit* victim, bool durabilityLoss = true, WeaponAttackType attackType = BASE_ATTACK, SpellInfo const* spellProto = nullptr);
+    void KillSelf(bool durabilityLoss = true, WeaponAttackType attackType = BASE_ATTACK, SpellInfo const* spellProto = nullptr)
+    {
+        Kill(this, this, durabilityLoss, attackType, spellProto);
+    };
     static void DealHeal(HealInfo& healInfo);
 
     void ProcSkillsAndAuras(Unit* actionTarget, uint32 typeMaskActor, uint32 typeMaskActionTarget, uint32 spellTypeMask, uint32 spellPhaseMask, uint32 hitMask, Spell* spell, DamageInfo* damageInfo, HealInfo* healInfo);

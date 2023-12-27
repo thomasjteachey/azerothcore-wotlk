@@ -98,16 +98,25 @@ float playerBaseMoveSpeed[MAX_MOVE_TYPE] =
     3.14f                  // MOVE_PITCH_RATE
 };
 
-DamageInfo::DamageInfo(Unit* attacker, Unit* victim, uint32 damage, SpellInfo const* spellInfo, SpellSchoolMask schoolMask, DamageEffectType damageType, WeaponAttackType attackType, uint32 cleanDamage)
-        : m_attacker(attacker), m_victim(victim), m_damage(damage), m_spellInfo(spellInfo), m_schoolMask(schoolMask),
-          m_damageType(damageType), m_attackType(attackType), m_absorb(0), m_resist(0), m_block(0), m_hitMask(0), m_cleanDamage(cleanDamage)
+DamageInfo::DamageInfo(Unit* attacker, Unit* victim, uint32 damage, SpellInfo const* spellInfo, SpellSchoolMask schoolMask, DamageEffectType damageType, WeaponAttackType attackType)
+    : m_attacker(attacker), m_victim(victim), m_damage(damage), m_spellInfo(spellInfo), m_schoolMask(schoolMask), m_damageType(damageType), m_attackType(attackType),
+    m_absorb(0), m_resist(0), m_block(0), m_hitMask(0)
 {
 }
 
-DamageInfo::DamageInfo(CalcDamageInfo& dmgInfo)
-    : m_attacker(dmgInfo.attacker), m_victim(dmgInfo.target), m_damage(dmgInfo.damage), m_spellInfo(nullptr), m_schoolMask(SpellSchoolMask(dmgInfo.damageSchoolMask)),
-      m_damageType(DIRECT_DAMAGE), m_attackType(dmgInfo.attackType), m_absorb(dmgInfo.absorb), m_resist(dmgInfo.resist), m_block(dmgInfo.blocked_amount),
-      m_hitMask(0), m_cleanDamage(dmgInfo.cleanDamage)
+DamageInfo::DamageInfo(DamageInfo const& dmg1, DamageInfo const& dmg2)
+    : m_attacker(dmg1.m_attacker), m_victim(dmg1.m_victim), m_damage(dmg1.m_damage + dmg2.m_damage), m_spellInfo(dmg1.m_spellInfo), m_schoolMask(SpellSchoolMask(dmg1.m_schoolMask | dmg2.m_schoolMask)),
+    m_damageType(dmg1.m_damageType), m_attackType(dmg1.m_attackType), m_absorb(dmg1.m_absorb + dmg2.m_absorb), m_resist(dmg1.m_resist + dmg2.m_resist), m_block(dmg1.m_block), m_hitMask(dmg1.m_hitMask | dmg2.m_hitMask)
+{
+}
+
+DamageInfo::DamageInfo(CalcDamageInfo const& dmgInfo) : DamageInfo(DamageInfo(dmgInfo, 0), DamageInfo(dmgInfo, 1))
+{
+}
+
+DamageInfo::DamageInfo(CalcDamageInfo const& dmgInfo, uint8 damageIndex)
+    : m_attacker(dmgInfo.attacker), m_victim(dmgInfo.target), m_damage(dmgInfo.damages[damageIndex].damage), m_spellInfo(nullptr), m_schoolMask(SpellSchoolMask(dmgInfo.damages[damageIndex].damageSchoolMask)),
+    m_damageType(DIRECT_DAMAGE), m_attackType(dmgInfo.attackType), m_absorb(dmgInfo.damages[damageIndex].absorb), m_resist(dmgInfo.damages[damageIndex].resist), m_block(dmgInfo.blocked_amount), m_hitMask(0)
 {
     switch (dmgInfo.TargetState)
     {
@@ -120,23 +129,16 @@ DamageInfo::DamageInfo(CalcDamageInfo& dmgInfo)
     }
 
     if (dmgInfo.HitInfo & (HITINFO_PARTIAL_ABSORB | HITINFO_FULL_ABSORB))
-    {
         m_hitMask |= PROC_HIT_ABSORB;
-    }
 
     if (dmgInfo.HitInfo & HITINFO_FULL_RESIST)
-    {
         m_hitMask |= PROC_HIT_FULL_RESIST;
-    }
 
     if (m_block)
-    {
         m_hitMask |= PROC_HIT_BLOCK;
-    }
 
     bool const damageNullified = (dmgInfo.HitInfo & (HITINFO_FULL_ABSORB | HITINFO_FULL_RESIST)) != 0 ||
                                  (m_hitMask & (PROC_HIT_IMMUNE | PROC_HIT_FULL_BLOCK)) != 0;
-
     switch (dmgInfo.hitOutCome)
     {
         case MELEE_HIT_MISS:
@@ -165,20 +167,15 @@ DamageInfo::DamageInfo(CalcDamageInfo& dmgInfo)
     }
 }
 
-DamageInfo::DamageInfo(SpellNonMeleeDamage const& spellNonMeleeDamage, DamageEffectType damageType, WeaponAttackType attackType, uint32 /* hitMask */)
+DamageInfo::DamageInfo(SpellNonMeleeDamage const& spellNonMeleeDamage, DamageEffectType damageType, WeaponAttackType attackType, uint32 hitMask)
     : m_attacker(spellNonMeleeDamage.attacker), m_victim(spellNonMeleeDamage.target), m_damage(spellNonMeleeDamage.damage),
-      m_spellInfo(spellNonMeleeDamage.spellInfo), m_schoolMask(SpellSchoolMask(spellNonMeleeDamage.schoolMask)), m_damageType(damageType),
-      m_attackType(attackType), m_absorb(spellNonMeleeDamage.absorb), m_resist(spellNonMeleeDamage.resist), m_block(spellNonMeleeDamage.blocked),
-      m_hitMask(0), m_cleanDamage(spellNonMeleeDamage.cleanDamage)
+    m_spellInfo(sSpellMgr->GetSpellInfo(spellNonMeleeDamage.spellInfo->Id)), m_schoolMask(SpellSchoolMask(spellNonMeleeDamage.schoolMask)), m_damageType(damageType),
+    m_attackType(attackType), m_absorb(spellNonMeleeDamage.absorb), m_resist(spellNonMeleeDamage.resist), m_block(spellNonMeleeDamage.blocked), m_hitMask(hitMask)
 {
     if (spellNonMeleeDamage.blocked)
-    {
         m_hitMask |= PROC_HIT_BLOCK;
-    }
     if (spellNonMeleeDamage.absorb)
-    {
         m_hitMask |= PROC_HIT_ABSORB;
-    }
 }
 
 void DamageInfo::ModifyDamage(int32 amount)
@@ -1396,7 +1393,7 @@ void Unit::CalculateSpellDamageTaken(SpellNonMeleeDamage* damageInfo, int32 dama
                     uint32 crit_bonus = damage;
                     // Apply crit_damage bonus for melee spells
                     if (Player* modOwner = GetSpellModOwner())
-                        modOwner->ApplySpellMod<SPELLMOD_CRIT_DAMAGE_BONUS>(spellInfo->Id, crit_bonus);
+                        modOwner->ApplySpellMod(spellInfo->Id, SPELLMOD_CRIT_DAMAGE_BONUS, crit_bonus);
                     damage += crit_bonus;
 
                     // Apply SPELL_AURA_MOD_ATTACKER_RANGED_CRIT_DAMAGE or SPELL_AURA_MOD_ATTACKER_MELEE_CRIT_DAMAGE
@@ -1649,13 +1646,23 @@ void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, Weapon
         case MELEE_HIT_EVADE:
             damageInfo->HitInfo        |= HITINFO_MISS | HITINFO_SWINGNOHITSOUND;
             damageInfo->TargetState     = VICTIMSTATE_EVADES;
-            damageInfo->damage = 0;
+
+            for (uint8 i = 0; i < MAX_ITEM_PROTO_DAMAGES; ++i)
+            {
+                damageInfo->damages[i].damage = 0;
+            }
+
             damageInfo->cleanDamage = 0;
             return;
         case MELEE_HIT_MISS:
             damageInfo->HitInfo        |= HITINFO_MISS;
             damageInfo->TargetState     = VICTIMSTATE_INTACT;
-            damageInfo->damage          = 0;
+
+            for (uint8 i = 0; i < MAX_ITEM_PROTO_DAMAGES; ++i)
+            {
+                damageInfo->damages[i].damage = 0;
+            }
+
             damageInfo->cleanDamage     = 0;
             break;
         case MELEE_HIT_NORMAL:
@@ -1698,13 +1705,25 @@ void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, Weapon
             }
         case MELEE_HIT_PARRY:
             damageInfo->TargetState  = VICTIMSTATE_PARRY;
-            damageInfo->cleanDamage += damageInfo->damage;
-            damageInfo->damage = 0;
+            damageInfo->cleanDamage = 0;
+
+            for (uint8 i = 0; i < MAX_ITEM_PROTO_DAMAGES; ++i)
+            {
+                damageInfo->cleanDamage += damageInfo->damages[i].damage;
+                damageInfo->damages[i].damage = 0;
+            }
+
             break;
         case MELEE_HIT_DODGE:
             damageInfo->TargetState  = VICTIMSTATE_DODGE;
-            damageInfo->cleanDamage += damageInfo->damage;
-            damageInfo->damage = 0;
+            damageInfo->cleanDamage = 0;
+
+            for (uint8 i = 0; i < MAX_ITEM_PROTO_DAMAGES; ++i)
+            {
+                damageInfo->cleanDamage += damageInfo->damages[i].damage;
+                damageInfo->damages[i].damage = 0;
+            }
+
             break;
         case MELEE_HIT_BLOCK:
         {
@@ -1739,23 +1758,30 @@ void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, Weapon
             if (fullBlockMask == ((1 << 0) | (1 << 1)))
             {
                 damageInfo->TargetState = VICTIMSTATE_BLOCKS;
-                damageInfo->blocked_amount = damageInfo->damage;
+                damageInfo->blocked_amount = remainingBlock;
             }
 
-            damageInfo->damage      -= damageInfo->blocked_amount;
-            damageInfo->cleanDamage += damageInfo->blocked_amount;
             break;
         }
         case MELEE_HIT_GLANCING:
             {
                 damageInfo->HitInfo     |= HITINFO_GLANCING;
                 damageInfo->TargetState  = VICTIMSTATE_HIT;
-                int32 leveldif = int32(victim->getLevel()) - int32(getLevel());
+
+                int32 leveldif = int32(victim->GetLevel()) - int32(GetLevel());
+
                 if (leveldif > 3)
                     leveldif = 3;
+
                 float reducePercent = 1 - leveldif * 0.1f;
-                damageInfo->cleanDamage += damageInfo->damage - uint32(reducePercent * damageInfo->damage);
-                damageInfo->damage = uint32(reducePercent * damageInfo->damage);
+
+                for (uint8 i = 0; i < MAX_ITEM_PROTO_DAMAGES; ++i)
+                {
+                    uint32 reducedDamage = uint32(reducePercent * damageInfo->damages[i].damage);
+                    damageInfo->cleanDamage += damageInfo->damages[i].damage - reducedDamage;
+                    damageInfo->damages[i].damage = reducedDamage;
+                }
+
                 break;
             }
         case MELEE_HIT_CRUSHING:
@@ -1796,7 +1822,7 @@ void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, Weapon
         damageInfo->cleanDamage = std::max(0, cleanDamage);
 
         // Calculate absorb resist
-        if (damageInfo->damages[i].damage > 0)
+        if (int32(damageInfo->damages[i].damage) > 0)
         {
             damageInfo->procVictim |= PROC_FLAG_TAKEN_DAMAGE;
 
@@ -1811,19 +1837,31 @@ void Unit::CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, Weapon
                 tmpHitInfo[i] |= (damageInfo->damages[i].damage - damageInfo->damages[i].absorb == 0 ? HITINFO_FULL_ABSORB : HITINFO_PARTIAL_ABSORB);
             }
 
-            if (damageInfo->damages[i].resist)
-            {
+            if (damageInfo->damages[i].resist) {
                 tmpHitInfo[i] |= (damageInfo->damages[i].damage - damageInfo->damages[i].resist == 0 ? HITINFO_FULL_RESIST : HITINFO_PARTIAL_RESIST);
             }
 
-        if (damageInfo->absorb)
-        {
-            damageInfo->HitInfo |= (damageInfo->damage - damageInfo->absorb == 0 ? HITINFO_FULL_ABSORB : HITINFO_PARTIAL_ABSORB);
+            damageInfo->cleanDamage += damageInfo->damages[i].damage - dmgInfo.GetDamage();
+            damageInfo->damages[i].damage = dmgInfo.GetDamage();
+        } else {
+            // Impossible get negative result but....
+            damageInfo->damages[i].damage = 0;
         }
+    }
 
-    if (damageInfo->HitInfo & HITINFO_FULL_RESIST)
-    {
-        damageInfo->procEx |= PROC_EX_RESIST;
+    // set proper HitInfo flags
+    if ((tmpHitInfo[0] & HITINFO_FULL_ABSORB) != 0) {
+        // set partial absorb when secondary damage isn't full absorbed
+        damageInfo->HitInfo |= ((tmpHitInfo[1] & HITINFO_PARTIAL_ABSORB) != 0) ? HITINFO_PARTIAL_ABSORB : HITINFO_FULL_ABSORB;
+    } else {
+        damageInfo->HitInfo |= (tmpHitInfo[0] & HITINFO_PARTIAL_ABSORB);
+    }
+
+    if ((tmpHitInfo[0] & HITINFO_FULL_RESIST) != 0) {
+        // set partial resist when secondary damage isn't full resisted
+        damageInfo->HitInfo |= ((tmpHitInfo[1] & HITINFO_PARTIAL_RESIST) != 0) ? HITINFO_PARTIAL_RESIST : HITINFO_FULL_RESIST;
+    } else {
+        damageInfo->HitInfo |= (tmpHitInfo[0] & HITINFO_PARTIAL_RESIST);
     }
 }
 
@@ -2021,7 +2059,7 @@ uint32 Unit::CalcArmorReducedDamage(Unit const* attacker, Unit const* victim, co
 
         if (spellInfo)
             if (Player* modOwner = attacker->GetSpellModOwner())
-                modOwner->ApplySpellMod<SPELLMOD_IGNORE_ARMOR>(spellInfo->Id, armor);
+                modOwner->ApplySpellMod(spellInfo->Id, SPELLMOD_IGNORE_ARMOR, armor);
 
         AuraEffectList const& ResIgnoreAurasAb = attacker->GetAuraEffectsByType(SPELL_AURA_MOD_ABILITY_IGNORE_TARGET_RESIST);
         for (AuraEffectList::const_iterator j = ResIgnoreAurasAb.begin(); j != ResIgnoreAurasAb.end(); ++j)
@@ -3293,7 +3331,7 @@ SpellMissInfo Unit::MagicSpellHitResult(Unit* victim, SpellInfo const* spellInfo
 
     // Spellmod from SPELLMOD_RESIST_MISS_CHANCE
     if (Player* modOwner = GetSpellModOwner())
-        modOwner->ApplySpellMod<SPELLMOD_RESIST_MISS_CHANCE>(spellInfo->Id, modHitChance);
+        modOwner->ApplySpellMod(spellInfo->Id, SPELLMOD_RESIST_MISS_CHANCE, modHitChance);
 
     // Increase from attacker SPELL_AURA_MOD_INCREASES_SPELL_PCT_TO_HIT auras
     modHitChance += GetTotalAuraModifierByMiscMask(SPELL_AURA_MOD_INCREASES_SPELL_PCT_TO_HIT, schoolMask);
@@ -7726,8 +7764,6 @@ void Unit::UnsummonAllTotems(bool onDeath /*= false*/)
 
 void Unit::SendHealSpellLog(HealInfo& healInfo, bool critical /*= false*/)
 {
-    uint32 overheal = healInfo.GetHeal() - healInfo.GetEffectiveHeal();
-
     // we guess size
     WorldPacket data(SMSG_SPELLHEALLOG, (8 + 8 + 4 + 4 + 4 + 4 + 1 + 1));
     data << healInfo.GetTarget()->GetPackGUID();
@@ -7770,7 +7806,7 @@ void Unit::EnergizeBySpell(Unit* victim, uint32 spellID, uint32 damage, Powers p
 {
     SendEnergizeSpellLog(victim, spellID, damage, powerType);
     // needs to be called after sending spell log
-    victim->ModifyPower(powerType, damage);
+    int32 gainedPower = victim->ModifyPower(powerType, damage);
 
     if (powerType != POWER_HAPPINESS && gainedPower)
     {
@@ -8271,7 +8307,7 @@ uint32 Unit::SpellDamageBonusDone(Unit* victim, SpellInfo const* spellProto, uin
         if (Player* modOwner = GetSpellModOwner())
         {
             coeff *= 100.0f;
-            modOwner->ApplySpellMod<SPELLMOD_BONUS_MULTIPLIER>(spellProto->Id, coeff);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_BONUS_MULTIPLIER, coeff);
             coeff /= 100.0f;
         }
 
@@ -8284,11 +8320,11 @@ uint32 Unit::SpellDamageBonusDone(Unit* victim, SpellInfo const* spellProto, uin
     {
         if (damagetype == DOT)
         {
-            modOwner->ApplySpellMod<SPELLMOD_DOT>(spellProto->Id, tmpDamage);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_DOT, tmpDamage);
         }
         else
         {
-            modOwner->ApplySpellMod<SPELLMOD_DAMAGE>(spellProto->Id, tmpDamage);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_DAMAGE, tmpDamage);
         }
     }
 
@@ -8567,7 +8603,7 @@ float Unit::SpellDoneCritChance(Unit const* /*victim*/, SpellInfo const* spellPr
     // percent done
     // only players use intelligence for critical chance computations
     if (Player* modOwner = GetSpellModOwner())
-        modOwner->ApplySpellMod<SPELLMOD_CRITICAL_CHANCE>(spellProto->Id, crit_chance);
+        modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_CRITICAL_CHANCE, crit_chance);
 
     // xinef: can be negative!
     return crit_chance;
@@ -8817,7 +8853,7 @@ uint32 Unit::SpellCriticalDamageBonus(Unit const* caster, SpellInfo const* spell
 
         // adds additional damage to critBonus (from talents)
         if (Player* modOwner = caster->GetSpellModOwner())
-            modOwner->ApplySpellMod<SPELLMOD_CRIT_DAMAGE_BONUS>(spellProto->Id, crit_bonus);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_CRIT_DAMAGE_BONUS, crit_bonus);
 
         crit_bonus += damage;
     }
@@ -8852,7 +8888,7 @@ uint32 Unit::SpellCriticalHealingBonus(Unit const* caster, SpellInfo const* spel
         // adds additional damage to critBonus (from talents)
         // xinef: used for death knight death coil
         if (Player* modOwner = caster->GetSpellModOwner())
-            modOwner->ApplySpellMod<SPELLMOD_CRIT_DAMAGE_BONUS>(spellProto->Id, crit_bonus);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_CRIT_DAMAGE_BONUS, crit_bonus);
     }
 
     if (crit_bonus > 0)
@@ -9044,7 +9080,7 @@ uint32 Unit::SpellHealingBonusDone(Unit* victim, SpellInfo const* spellProto, ui
         if (Player* modOwner = GetSpellModOwner())
         {
             coeff *= 100.0f;
-            modOwner->ApplySpellMod<SPELLMOD_BONUS_MULTIPLIER>(spellProto->Id, coeff);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_BONUS_MULTIPLIER, coeff);
             coeff /= 100.0f;
         }
         DoneTotal += int32(DoneAdvertisedBenefit * coeff * factorMod);
@@ -9072,11 +9108,11 @@ uint32 Unit::SpellHealingBonusDone(Unit* victim, SpellInfo const* spellProto, ui
     {
         if (damagetype == DOT)
         {
-            modOwner->ApplySpellMod<SPELLMOD_DOT>(spellProto->Id, heal);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_DOT, heal);
         }
         else
         {
-            modOwner->ApplySpellMod<SPELLMOD_DAMAGE>(spellProto->Id, heal);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_DAMAGE, heal);
         }
     }
 
@@ -9174,7 +9210,7 @@ uint32 Unit::SpellHealingBonusTaken(Unit* caster, SpellInfo const* spellProto, u
         if (Player* modOwner = GetSpellModOwner())
         {
             coeff *= 100.0f;
-            modOwner->ApplySpellMod<SPELLMOD_BONUS_MULTIPLIER>(spellProto->Id, coeff);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_BONUS_MULTIPLIER, coeff);
             coeff /= 100.0f;
         }
 
@@ -9783,7 +9819,7 @@ uint32 Unit::MeleeDamageBonusDone(Unit* victim, uint32 pdamage, WeaponAttackType
     // apply spellmod to Done damage
     if (spellProto)
         if (Player* modOwner = GetSpellModOwner())
-            modOwner->ApplySpellMod<SPELLMOD_DAMAGE>(spellProto->Id, tmpDamage);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_DAMAGE, tmpDamage);
 
     // bonus result can be negative
     return uint32(std::max(tmpDamage, 0.0f));
@@ -9973,7 +10009,7 @@ float Unit::GetPPMProcChance(uint32 WeaponSpeed, float PPM, SpellInfo const* spe
     // Apply chance modifer aura
     if (spellProto)
         if (Player* modOwner = GetSpellModOwner())
-            modOwner->ApplySpellMod<SPELLMOD_PROC_PER_MINUTE>(spellProto->Id, PPM);
+            modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_PROC_PER_MINUTE, PPM);
 
     return floor((WeaponSpeed * PPM) / 600.0f);   // result is chance in percents (probability = Speed_in_sec * (PPM / 60))
 }
@@ -11338,17 +11374,17 @@ float Unit::ApplyEffectModifiers(SpellInfo const* spellProto, uint8 effect_index
 {
     if (Player* modOwner = GetSpellModOwner())
     {
-        modOwner->ApplySpellMod<SPELLMOD_ALL_EFFECTS>(spellProto->Id, value);
+        modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_ALL_EFFECTS, value);
         switch (effect_index)
         {
             case EFFECT_0:
-                modOwner->ApplySpellMod<SPELLMOD_EFFECT1>(spellProto->Id, value);
+                modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_EFFECT1, value);
                 break;
             case EFFECT_1:
-                modOwner->ApplySpellMod<SPELLMOD_EFFECT2>(spellProto->Id, value);
+                modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_EFFECT2, value);
                 break;
             case EFFECT_2:
-                modOwner->ApplySpellMod<SPELLMOD_EFFECT3>(spellProto->Id, value);
+                modOwner->ApplySpellMod(spellProto->Id, SPELLMOD_EFFECT3, value);
                 break;
         }
     }
@@ -11489,7 +11525,7 @@ void Unit::ModSpellCastTime(SpellInfo const* spellInfo, int32& castTime, Spell* 
     // called from caster
     if (Player* modOwner = GetSpellModOwner())
         // TODO:(MadAgos) Eventually check and delete the bool argument
-        modOwner->ApplySpellMod<SPELLMOD_CASTING_TIME>(spellInfo->Id, castTime, spell);
+        modOwner->ApplySpellMod(spellInfo->Id, SPELLMOD_CASTING_TIME, castTime, spell);
 
     switch (spellInfo->DmgClass)
     {
@@ -12073,7 +12109,7 @@ void Unit::SetMaxHealth(uint32 val)
 
 void Unit::SetPower(Powers power, uint32 val)
 {
-    if (!fromRegenerate && GetPower(power) == val)
+    if (GetPower(power) == val)
     {
         return;
     }
@@ -12084,15 +12120,7 @@ void Unit::SetPower(Powers power, uint32 val)
         val = maxPower;
     }
 
-    if (fromRegenerate)
-    {
-        UpdateUInt32Value(static_cast<uint16>(UNIT_FIELD_POWER1) + power, val);
-        AddToObjectUpdateIfNeeded();
-    }
-    else
-    {
-        SetStatInt32Value(static_cast<uint16>(UNIT_FIELD_POWER1) + power, val);
-    }
+    SetStatInt32Value(static_cast<uint16>(UNIT_FIELD_POWER1) + power, val);
 
     WorldPacket data(SMSG_POWER_UPDATE);
     data << GetPackGUID();
@@ -15123,7 +15151,7 @@ float Unit::MeleeSpellMissChance(Unit const* victim, WeaponAttackType attType, i
     if (spellId)
     {
         if (Player* modOwner = GetSpellModOwner())
-            modOwner->ApplySpellMod<SPELLMOD_RESIST_MISS_CHANCE>(spellId, hitChance);
+            modOwner->ApplySpellMod(spellId, SPELLMOD_RESIST_MISS_CHANCE, hitChance);
     }
 
     missChance += hitChance - 100.0f;

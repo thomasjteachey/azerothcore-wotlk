@@ -1952,7 +1952,7 @@ void Player::Regenerate(Powers power)
 
     if (m_regenTimerCount >= 2000 || forcedUpdate)
     {
-        SetPower(power, curValue, true, true);
+        SetPower(power, curValue);
     }
     else
     {
@@ -7153,9 +7153,6 @@ void Player::CastItemCombatSpell(DamageInfo const& damageInfo)
 
 void Player::CastItemCombatSpell(DamageInfo const& damageInfo, Item* item, ItemTemplate const* proto)
 {
-//    if (!sScriptMgr->CanCastItemCombatSpell(this, target, attType, procVictim, procEx, item, proto))
-//        return;
-
     // Can do effect if any damage done to target
     // for done procs allow normal + critical + absorbs by default
     bool canTrigger = (damageInfo.GetHitMask() & (PROC_HIT_NORMAL | PROC_HIT_CRITICAL | PROC_HIT_ABSORB)) != 0;
@@ -7230,7 +7227,8 @@ void Player::CastItemCombatSpell(DamageInfo const& damageInfo, Item* item, ItemT
                     continue;
             }
 
-            if (entry && (entry->attributeMask & ENCHANT_PROC_ATTR_WHITE_HIT) && (procVictim & SPELL_PROC_FLAG_MASK))
+            // check if enchant procs only on white hits
+            if (entry && (entry->attributeMask & ENCHANT_PROC_ATTR_WHITE_HIT) && damageInfo.GetSpellInfo())
                 continue;
 
             SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(pEnchant->spellid[s]);
@@ -7243,7 +7241,7 @@ void Player::CastItemCombatSpell(DamageInfo const& damageInfo, Item* item, ItemT
 
             if (entry && (entry->attributeMask & ENCHANT_PROC_ATTR_EXCLUSIVE) != 0)
             {
-                Unit* checkTarget = spellInfo->IsPositive() ? this : target;
+                Unit* checkTarget = spellInfo->IsPositive() ? this : damageInfo.GetVictim();
                 if (checkTarget->HasAura(spellInfo->Id, GetGUID()))
                 {
                     continue;
@@ -7261,7 +7259,7 @@ void Player::CastItemCombatSpell(DamageInfo const& damageInfo, Item* item, ItemT
             }
 
             // Apply spell mods
-            ApplySpellMod<SPELLMOD_CHANCE_OF_SUCCESS>(pEnchant->spellid[s], chance);
+            ApplySpellMod(pEnchant->spellid[s], SPELLMOD_CHANCE_OF_SUCCESS, chance);
 
             // Shiv has 100% chance to apply the poison
             if (FindCurrentSpellBySpellId(5938) && e_slot == TEMP_ENCHANTMENT_SLOT)
@@ -9650,135 +9648,136 @@ bool Player::IsAffectedBySpellmod(SpellInfo const* spellInfo, SpellModifier* mod
 }
 
 template <class T>
-void Player::ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, Spell* spell, bool temporaryPet)
+void Player::ApplySpellMod(uint32 spellId, SpellModOp op, T& basevalue, Spell* spell /*= nullptr*/) const
 {
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
     if (!spellInfo)
-    {
         return;
-    }
 
-    float totalmul = 1.0f;
+    float totalmul = 1.f;
     int32 totalflat = 0;
-
-    auto calculateSpellMod = [&](SpellModifier* mod)
-    {
-        // xinef: temporary pets cannot use charged mods of owner, needed for mirror image QQ they should use their own auras
-        if (temporaryPet && mod->charges != 0)
-        {
-            return;
-        }
-
-        if (mod->type == SPELLMOD_FLAT)
-        {
-            // xinef: do not allow to consume more than one 100% crit increasing spell
-            if (mod->op == SPELLMOD_CRITICAL_CHANCE && totalflat >= 100)
-            {
-                return;
-            }
-
-            int32 flatValue = mod->value;
-
-            // SPELL_MOD_THREAT - divide by 100 (in packets we send threat * 100)
-            if (mod->op == SPELLMOD_THREAT)
-            {
-                flatValue /= 100;
-            }
-
-            totalflat += flatValue;
-        }
-        else if (mod->type == SPELLMOD_PCT)
-        {
-            // skip percent mods for null basevalue (most important for spell mods with charges)
-            if (basevalue == T(0) || totalmul == 0.0f)
-            {
-                return;
-            }
-
-            // special case (skip > 10sec spell casts for instant cast setting)
-            if (mod->op == SPELLMOD_CASTING_TIME && basevalue >= T(10000) && mod->value <= -100)
-            {
-                return;
-            }
-            // xinef: special exception for surge of light, dont affect crit chance if previous mods were not applied
-            else if (mod->op == SPELLMOD_CRITICAL_CHANCE && spell && !HasSpellMod(mod, spell))
-            {
-                return;
-            }
-            // xinef: special case for backdraft gcd reduce with backlast time reduction, dont affect gcd if cast time was not applied
-            else if (mod->op == SPELLMOD_GLOBAL_COOLDOWN && spell && !HasSpellMod(mod, spell))
-            {
-                return;
-            }
-
-            // xinef: those two mods should be multiplicative (Glyph of Renew)
-            if (mod->op == SPELLMOD_DAMAGE || mod->op == SPELLMOD_DOT)
-            {
-                totalmul *= CalculatePct(1.0f, 100.0f + mod->value);
-            }
-            else
-            {
-                totalmul += CalculatePct(1.0f, mod->value);
-            }
-        }
-
-        DropModCharge(mod, spell);
-    };
 
     // Drop charges for triggering spells instead of triggered ones
     if (m_spellModTakingSpell)
-    {
         spell = m_spellModTakingSpell;
-    }
 
-    SpellModifier* chargedMod = nullptr;
-    for (auto mod : m_spellMods[op])
+    switch (op)
     {
-        // Charges can be set only for mods with auras
-        if (!mod->ownerAura)
+        // special case, if a mod makes spell instant, only consume that mod
+        case SPELLMOD_CASTING_TIME:
         {
-            ASSERT(!mod->charges);
-        }
-
-        if (!IsAffectedBySpellmod(spellInfo, mod, spell))
-        {
-            continue;
-        }
-
-        if (mod->ownerAura->IsUsingCharges())
-        {
-            if (!chargedMod || (chargedMod->ownerAura->GetSpellInfo()->SpellPriority < mod->ownerAura->GetSpellInfo()->SpellPriority))
+            SpellModifier* modInstantSpell = nullptr;
+            for (SpellModifier* mod : m_spellMods[SPELLMOD_CASTING_TIME])
             {
-                chargedMod = mod;
+                if (!IsAffectedBySpellmod(spellInfo, mod, spell))
+                {
+                    continue;
+                }
+
+                if (mod->type == SPELLMOD_PCT && basevalue < T(10000) && mod->value <= -100)
+                {
+                    modInstantSpell = mod;
+                    break;
+                }
             }
 
-            continue;
+            if (modInstantSpell)
+            {
+                Player::ApplyModToSpell(modInstantSpell, spell);
+                basevalue = T(0);
+                return;
+            }
+            break;
         }
 
-        calculateSpellMod(mod);
+            // special case if two mods apply 100% critical chance, only consume one
+        case SPELLMOD_CRITICAL_CHANCE:
+        {
+            SpellModifier* modCritical = nullptr;
+            for (auto mod : m_spellMods[SPELLMOD_CRITICAL_CHANCE])
+            {
+                if (!IsAffectedBySpellmod(spellInfo, mod, spell))
+                {
+                    continue;
+                }
+
+                if (mod->type == SPELLMOD_FLAT && mod->value >= 100)
+                {
+                    modCritical = mod;
+                    break;
+                }
+            }
+
+            if (modCritical)
+            {
+                Player::ApplyModToSpell(modCritical, spell);
+                basevalue = T(100);
+                return;
+            }
+            break;
+        }
+
+        default:
+            break;
     }
 
-    if (chargedMod)
+    for (auto mod : m_spellMods[op])
     {
-        calculateSpellMod(chargedMod);
-    }
+        if (!IsAffectedBySpellmod(spellInfo, mod, spell))
+            continue;
 
+        switch (mod->type)
+        {
+            case SPELLMOD_FLAT:
+                totalflat += mod->value;
+                break;
+            case SPELLMOD_PCT:
+            {
+                // skip percent mods for null basevalue (most important for spell mods with charges)
+                if (basevalue == T(0))
+                {
+                    continue;
+                }
+
+                // special case (skip > 10s spell casts for instant cast setting)
+                if (op == SPELLMOD_CASTING_TIME)
+                {
+                    if (mod->value <= -100 && basevalue >= T(10000))
+                    {
+                        continue;
+                    }
+                }
+
+                totalmul += CalculatePct(1.f, mod->value);
+                break;
+            }
+        }
+
+        /*// xinef: special exception for surge of light, dont affect crit chance if previous mods were not applied
+        else if (mod->op == SPELLMOD_CRITICAL_CHANCE && spell && !HasSpellMod(mod, spell))
+            continue;
+        // xinef: special case for backdraft gcd reduce with backlast time reduction, dont affect gcd if cast time was not applied
+        else if (mod->op == SPELLMOD_GLOBAL_COOLDOWN && spell && !HasSpellMod(mod, spell))
+            continue;
+        // xinef: those two mods should be multiplicative (Glyph of Renew)
+        if (mod->op == SPELLMOD_DAMAGE || mod->op == SPELLMOD_DOT)
+            totalmul *= CalculatePct(1.0f, 100.0f + mod->value);
+        else
+            totalmul += CalculatePct(1.0f, mod->value);*/
+
+        Player::ApplyModToSpell(mod, spell);
+    }
     float diff = 0.0f;
     if (op == SPELLMOD_CASTING_TIME || op == SPELLMOD_DURATION)
-    {
         diff = ((float)basevalue + totalflat) * (totalmul - 1.0f) + (float)totalflat;
-    }
     else
-    {
         diff = (float)basevalue * (totalmul - 1.0f) + (float)totalflat;
-    }
-
     basevalue = T((float)basevalue + diff);
 }
 
-template AC_GAME_API void Player::ApplySpellMod(uint32 spellId, SpellModOp op, int32& basevalue, Spell* spell, bool temporaryPet);
-template AC_GAME_API void Player::ApplySpellMod(uint32 spellId, SpellModOp op, uint32& basevalue, Spell* spell, bool temporaryPet);
-template AC_GAME_API void Player::ApplySpellMod(uint32 spellId, SpellModOp op, float& basevalue, Spell* spell, bool temporaryPet);
+template AC_GAME_API void Player::ApplySpellMod(uint32 spellId, SpellModOp op, int32& basevalue, Spell* spell) const;
+template AC_GAME_API void Player::ApplySpellMod(uint32 spellId, SpellModOp op, uint32& basevalue, Spell* spell) const;
+template AC_GAME_API void Player::ApplySpellMod(uint32 spellId, SpellModOp op, float& basevalue, Spell* spell) const;
 
 // Binary predicate for sorting SpellModifiers
 class SpellModPred
@@ -10822,18 +10821,11 @@ void Player::AddSpellAndCategoryCooldowns(SpellInfo const* spellInfo, uint32 ite
 
         // Now we have cooldown data (if found any), time to apply mods
         if (rec > 0)
-        {
-            int32 oldRec = rec;
-            ApplySpellMod<SPELLMOD_COOLDOWN>(spellInfo->Id, rec, spell);
-            if (oldRec != rec)
-            {
-                useSpellCooldown = true;
-            }
-        }
+            ApplySpellMod(spellInfo->Id, SPELLMOD_COOLDOWN, rec, spell);
 
         if (catrec > 0 && !spellInfo->HasAttribute(SPELL_ATTR6_NO_CATEGORY_COOLDOWN_MODS))
         {
-            ApplySpellMod<SPELLMOD_COOLDOWN>(spellInfo->Id, catrec, spell);
+            ApplySpellMod(spellInfo->Id, SPELLMOD_COOLDOWN, catrec, spell);
         }
 
         if (int32 cooldownMod = GetTotalAuraModifier(SPELL_AURA_MOD_COOLDOWN))
