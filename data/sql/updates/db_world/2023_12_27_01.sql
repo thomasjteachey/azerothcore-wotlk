@@ -4,21 +4,21 @@
 DELETE FROM `spell_bonus_data` WHERE `entry`=379;
 
 ALTER TABLE `spell_proc`
-    CHANGE `spellId` `SpellId` int(11) NOT NULL DEFAULT 0 FIRST,
-    CHANGE `schoolMask` `SchoolMask` tinyint(3) unsigned NOT NULL DEFAULT 0 AFTER `SpellId`,
-    CHANGE `spellFamilyName` `SpellFamilyName` smallint(5) unsigned NOT NULL DEFAULT 0 AFTER `SchoolMask`,
-    CHANGE `spellFamilyMask0` `SpellFamilyMask0` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellFamilyName`,
-    CHANGE `spellFamilyMask1` `SpellFamilyMask1` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellFamilyMask0`,
-    CHANGE `spellFamilyMask2` `SpellFamilyMask2` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellFamilyMask1`,
-    CHANGE `typeMask` `ProcFlags` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellFamilyMask2`,
-    CHANGE `spellTypeMask` `SpellTypeMask` int(10) unsigned NOT NULL DEFAULT 0 AFTER `ProcFlags`,
-    CHANGE `spellPhaseMask` `SpellPhaseMask` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellTypeMask`,
-    CHANGE `hitMask` `HitMask` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellPhaseMask`,
-    CHANGE `attributesMask` `AttributesMask` int(10) unsigned NOT NULL DEFAULT 0 AFTER `HitMask`,
-    CHANGE `ratePerMinute` `ProcsPerMinute` float NOT NULL DEFAULT 0 AFTER `AttributesMask`,
-    CHANGE `chance` `Chance` float NOT NULL DEFAULT 0 AFTER `ProcsPerMinute`,
-    CHANGE `cooldown` `Cooldown` int(10) unsigned NOT NULL DEFAULT 0 AFTER `Chance`,
-    CHANGE `charges` `Charges` tinyint(3) unsigned NOT NULL DEFAULT 0 AFTER `Cooldown`;
+    MODIFY `SpellId` int(11) NOT NULL DEFAULT 0 FIRST,
+    MODIFY `SchoolMask` tinyint(3) unsigned NOT NULL DEFAULT 0 AFTER `SpellId`,
+    MODIFY `SpellFamilyName` smallint(5) unsigned NOT NULL DEFAULT 0 AFTER `SchoolMask`,
+    MODIFY `SpellFamilyMask0` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellFamilyName`,
+    MODIFY `SpellFamilyMask1` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellFamilyMask0`,
+    MODIFY `SpellFamilyMask2` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellFamilyMask1`,
+    MODIFY `ProcFlags` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellFamilyMask2`,
+    MODIFY `SpellTypeMask` int(10) unsigned NOT NULL DEFAULT 0 AFTER `ProcFlags`,
+    MODIFY `SpellPhaseMask` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellTypeMask`,
+    MODIFY `HitMask` int(10) unsigned NOT NULL DEFAULT 0 AFTER `SpellPhaseMask`,
+    MODIFY `AttributesMask` int(10) unsigned NOT NULL DEFAULT 0 AFTER `HitMask`,
+    MODIFY `ProcsPerMinute` float NOT NULL DEFAULT 0 AFTER `AttributesMask`,
+    MODIFY `Chance` float NOT NULL DEFAULT 0 AFTER `ProcsPerMinute`,
+    MODIFY `Cooldown` int(10) unsigned NOT NULL DEFAULT 0 AFTER `Chance`,
+    MODIFY `Charges` tinyint(3) unsigned NOT NULL DEFAULT 0 AFTER `Cooldown`;
 
 DELETE FROM `command` WHERE `name`='reload spell_proc_event';
 
