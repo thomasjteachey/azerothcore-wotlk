@@ -15,18 +15,18 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "CellImpl.h"
+#include "CreatureScript.h"
+#include "GridNotifiers.h"
+#include "SpellAuraEffects.h"
+#include "SpellMgr.h"
+#include "SpellScript.h"
+#include "SpellScriptLoader.h"
 /*
  * Scripts for spells with SPELLFAMILY_ROGUE and SPELLFAMILY_GENERIC spells used by rogue players.
  * Ordered alphabetically using scriptname.
  * Scriptnames of files in this file should be prefixed with "spell_rog_".
  */
-
-#include "CellImpl.h"
-#include "GridNotifiers.h"
-#include "ScriptMgr.h"
-#include "SpellAuraEffects.h"
-#include "SpellMgr.h"
-#include "SpellScript.h"
 
 enum RogueSpells
 {
@@ -678,6 +678,24 @@ class spell_rog_tricks_of_the_trade_proc : public AuraScript
     }
 };
 
+class spell_rog_pickpocket : public SpellScript
+{
+    PrepareSpellScript(spell_rog_pickpocket);
+
+    SpellCastResult CheckCast()
+    {
+        if (!GetExplTargetUnit() || !GetCaster()->IsValidAttackTarget(GetExplTargetUnit(), GetSpellInfo()))
+            return SPELL_FAILED_BAD_TARGETS;
+
+        return SPELL_CAST_OK;
+    }
+
+    void Register() override
+    {
+        OnCheckCast += SpellCheckCastFn(spell_rog_pickpocket::CheckCast);
+    }
+};
+
 // -51664 - Cut to the Chase
 class spell_rog_cut_to_the_chase : public AuraScript
 {
@@ -833,7 +851,7 @@ void AddSC_rogue_spell_scripts()
     RegisterSpellScript(spell_rog_blade_flurry);
     RegisterSpellScript(spell_rog_cheat_death);
     RegisterSpellScript(spell_rog_deadly_poison);
-    new spell_rog_killing_spree();
+    RegisterSpellScript(spell_rog_killing_spree);
     RegisterSpellScript(spell_rog_nerves_of_steel);
     RegisterSpellScript(spell_rog_preparation);
     RegisterSpellScript(spell_rog_prey_on_the_weak);
@@ -841,6 +859,7 @@ void AddSC_rogue_spell_scripts()
     RegisterSpellScript(spell_rog_shiv);
     RegisterSpellScript(spell_rog_tricks_of_the_trade);
     RegisterSpellScript(spell_rog_tricks_of_the_trade_proc);
+    RegisterSpellScript(spell_rog_pickpocket);
     RegisterSpellScript(spell_rog_cut_to_the_chase);
     RegisterSpellScript(spell_rog_deadly_brew);
     RegisterSpellScript(spell_rog_quick_recovery);

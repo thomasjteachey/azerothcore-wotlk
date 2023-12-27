@@ -25,6 +25,7 @@
 
 #include "CellImpl.h"
 #include "Chat.h"
+#include "CommandScript.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "MMapFactory.h"
@@ -33,7 +34,6 @@
 #include "PathGenerator.h"
 #include "Player.h"
 #include "PointMovementGenerator.h"
-#include "ScriptMgr.h"
 #include "TargetedMovementGenerator.h"
 
 using namespace Acore::ChatCommands;
@@ -61,7 +61,7 @@ public:
         return commandTable;
     }
 
-    static bool HandleMmapPathCommand(ChatHandler* handler, Optional<std::string> para)
+    static bool HandleMmapPathCommand(ChatHandler* handler, Optional<std::string> param)
     {
         if (!MMAP::MMapFactory::createOrGetMMapMgr()->GetNavMesh(handler->GetSession()->GetPlayer()->GetMapId()))
         {
@@ -81,13 +81,19 @@ public:
         }
 
         bool useStraightPath = false;
-        if (StringStartsWith("true", *para))
-            useStraightPath = true;
-
         bool useRaycast = false;
-        if (StringStartsWith("line", *para) || StringStartsWith("ray", *para) || StringStartsWith("raycast", *para))
+        if (param)
         {
-            useRaycast = true;
+            auto paramValue = param.value();
+            if (paramValue.starts_with("true"))
+            {
+                useStraightPath = true;
+            }
+
+            if (paramValue.starts_with("line") || paramValue.starts_with("ray") || paramValue.starts_with("raycast"))
+            {
+                useRaycast = true;
+            }
         }
 
         // unit locations

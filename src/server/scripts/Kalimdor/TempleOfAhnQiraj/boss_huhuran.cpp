@@ -15,10 +15,11 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
+#include "CreatureScript.h"
 #include "ScriptedCreature.h"
-#include "SpellScript.h"
 #include "SpellAuras.h"
+#include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "temple_of_ahnqiraj.h"
 
 enum Emotes
@@ -49,7 +50,10 @@ enum Events
 
 struct boss_huhuran : public BossAI
 {
-    boss_huhuran(Creature* creature) : BossAI(creature, DATA_HUHURAN) { }
+    boss_huhuran(Creature* creature) : BossAI(creature, DATA_HUHURAN)
+    {
+        me->m_CombatDistance = 90.f;
+    }
 
     void Reset() override
     {
@@ -58,8 +62,9 @@ struct boss_huhuran : public BossAI
         _hardEnrage = false;
     }
 
-    void EnterCombat(Unit* /*who*/) override
+    void JustEngagedWith(Unit* who) override
     {
+        BossAI::JustEngagedWith(who);
         events.ScheduleEvent(EVENT_FRENZY, 12s, 21s);
         events.ScheduleEvent(EVENT_WYVERN_STING, 25s, 43s);
         events.ScheduleEvent(EVENT_ACID_SPIT, 1s, 20s);
@@ -153,6 +158,7 @@ class spell_huhuran_wyvern_sting : public AuraScript
 };
 
 // 26052 - Poison Bolt
+// 26180 - Wyvern Sting
 class spell_huhuran_poison_bolt : public SpellScript
 {
     PrepareSpellScript(spell_huhuran_poison_bolt);
@@ -179,3 +185,4 @@ void AddSC_boss_huhuran()
     RegisterSpellScript(spell_huhuran_wyvern_sting);
     RegisterSpellScript(spell_huhuran_poison_bolt);
 }
+

@@ -35,7 +35,7 @@
 #include "Vehicle.h"
 #include "WorldPacket.h"
 
-// TODO: this import is not necessary for compilation and marked as unused by the IDE
+/// @todo: this import is not necessary for compilation and marked as unused by the IDE
 //  however, for some reasons removing it would cause a damn linking issue
 //  there is probably some underlying problem with imports which should properly addressed
 //  see: https://github.com/azerothcore/azerothcore-wotlk/issues/9766
@@ -520,7 +520,7 @@ void Aura::_UnapplyForTarget(Unit* target, Unit* caster, AuraApplication* auraAp
 
     ApplicationMap::iterator itr = m_applications.find(target->GetGUID());
 
-    // TODO: Figure out why this happens
+    /// @todo: Figure out why this happens
     if (itr == m_applications.end())
     {
         LOG_ERROR("spells.aura", "Aura::_UnapplyForTarget, target:{}, caster:{}, spell:{} was not found in owners application map!",
@@ -824,7 +824,7 @@ void Aura::Update(uint32 diff, Unit* caster)
                 m_timeCla -= diff;
             else if (caster)
             {
-                if (int32 ManaPerSecond = m_spellInfo->ManaPerSecond + m_spellInfo->ManaPerSecondPerLevel * caster->getLevel())
+                if (int32 ManaPerSecond = m_spellInfo->ManaPerSecond + m_spellInfo->ManaPerSecondPerLevel * caster->GetLevel())
                 {
                     m_timeCla += 1000 - diff;
 
@@ -1390,7 +1390,7 @@ void Aura::HandleAuraSpecificMods(AuraApplication const* aurApp, Unit* caster, b
                     if (caster->HasAura(56370))
                         SetDuration(0);
                 }
-                // Todo: This should be moved to similar function in spell::hit
+                /// @todo: This should be moved to similar function in spell::hit
                 else if (GetSpellInfo()->SpellFamilyFlags[0] & 0x01000000)
                 {
                     // Polymorph Sound - Sheep && Penguin
@@ -1528,7 +1528,7 @@ void Aura::HandleAuraSpecificMods(AuraApplication const* aurApp, Unit* caster, b
             case SPELLFAMILY_SHAMAN:
             {
                 // Ghost Wolf Speed (PvP 58 lvl set)
-                if (GetSpellInfo()->SpellFamilyFlags[0] & 0x00000800 && target->HasAura(22801) && target->getLevel() <= 60)
+                if (GetSpellInfo()->SpellFamilyFlags[0] & 0x00000800 && target->HasAura(22801) && target->GetLevel() <= 60)
                 {
                     int32 bp0 = 15;
                     target->CastCustomSpell(target, 47017, &bp0, 0, 0, true);
@@ -1688,7 +1688,7 @@ void Aura::HandleAuraSpecificMods(AuraApplication const* aurApp, Unit* caster, b
             case SPELLFAMILY_WARRIOR:
                 if (!caster)
                     break;
-                [[fallthrough]]; // TODO: Not sure whether the fallthrough was a mistake (forgetting a break) or intended. This should be double-checked.
+                [[fallthrough]]; /// @todo: Not sure whether the fallthrough was a mistake (forgetting a break) or intended. This should be double-checked.
             case SPELLFAMILY_WARLOCK:
                 if (!caster)
                     break;
@@ -1908,6 +1908,16 @@ void Aura::HandleAuraSpecificMods(AuraApplication const* aurApp, Unit* caster, b
                                 owner->CastSpell(owner, 34471, true, 0, GetEffect(0));
                             else
                                 owner->RemoveAurasDueToSpell(34471);
+                        }
+                    }
+                    break;
+                case 34026: // Kill Command
+                    // Dungeon Set 3
+                    if (caster->HasAura(37483))
+                    {
+                        if (apply)
+                        {
+                            caster->CastSpell(caster, 37482, true);
                         }
                     }
                     break;
@@ -2170,7 +2180,7 @@ bool Aura::CanStackWith(Aura const* existingAura, bool remove) const
     }
 
     // spell of same spell rank chain
-    if (m_spellInfo->IsRankOf(existingSpellInfo))
+    if (m_spellInfo->IsRankOf(existingSpellInfo) && !(m_spellInfo->SpellFamilyName == SPELLFAMILY_HUNTER && m_spellInfo->SpellFamilyFlags[1] & 0x80000000))
     {
         // don't allow passive area auras to stack
         if (m_spellInfo->IsMultiSlotAura() && !IsArea())
@@ -2293,7 +2303,7 @@ uint8 Aura::GetProcEffectMask(AuraApplication* aurApp, ProcEventInfo& eventInfo,
     if (!procEffectMask)
         return 0;
 
-    // TODO:
+    /// @todo:
     // do allow additional requirements for procs
     // this is needed because this is the last moment in which you can prevent aura charge drop on proc
     // and possibly a way to prevent default checks (if there're going to be any)
@@ -2310,7 +2320,7 @@ uint8 Aura::GetProcEffectMask(AuraApplication* aurApp, ProcEventInfo& eventInfo,
 
     // Check if current equipment meets aura requirements
     // do that only for passive spells
-    // TODO: this needs to be unified for all kinds of auras
+    /// @todo: this needs to be unified for all kinds of auras
     Unit* target = aurApp->GetTarget();
     if (IsPassive() && target->GetTypeId() == TYPEID_PLAYER && GetSpellInfo()->EquippedItemClass != -1)
     {
@@ -2904,7 +2914,7 @@ void UnitAura::FillTargetMap(std::map<Unit*, uint8>& targets, Unit* caster)
                         }
                     case SPELL_EFFECT_APPLY_AREA_AURA_PET:
                         targetList.push_back(GetUnitOwner());
-                        [[fallthrough]]; // TODO: Not sure whether the fallthrough was a mistake (forgetting a break) or intended. This should be double-checked.
+                        [[fallthrough]]; /// @todo: Not sure whether the fallthrough was a mistake (forgetting a break) or intended. This should be double-checked.
                     case SPELL_EFFECT_APPLY_AREA_AURA_OWNER:
                         {
                             if (Unit* owner = GetUnitOwner()->GetCharmerOrOwner())
@@ -2980,15 +2990,20 @@ void DynObjAura::FillTargetMap(std::map<Unit*, uint8>& targets, Unit* /*caster*/
 
         for (UnitList::iterator itr = targetList.begin(); itr != targetList.end(); ++itr)
         {
-            // xinef: check z level and los dependence
             Unit* target = *itr;
-            float zLevel = GetDynobjOwner()->GetPositionZ();
-            if (target->GetPositionZ() + 3.0f < zLevel || target->GetPositionZ() - 5.0f > zLevel)
+
+            Optional<float> collisionHeight = { };
+            Optional<float> combatReach = { };
+            if (Unit* dynObjCaster = GetDynobjOwner()->GetCaster())
             {
-                if (!spellInfo->HasAttribute(SPELL_ATTR2_IGNORE_LINE_OF_SIGHT) && !spellInfo->HasAttribute(SPELL_ATTR5_ALWAYS_AOE_LINE_OF_SIGHT) && !target->IsWithinLOSInMap(GetDynobjOwner()))
-                {
-                    continue;
-                }
+                collisionHeight = dynObjCaster->GetCollisionHeight();
+                combatReach = dynObjCaster->GetCombatReach();
+            }
+
+            if (!spellInfo->HasAttribute(SPELL_ATTR2_IGNORE_LINE_OF_SIGHT) && !spellInfo->HasAttribute(SPELL_ATTR5_ALWAYS_AOE_LINE_OF_SIGHT) &&
+                !GetDynobjOwner()->IsWithinLOSInMap(target, VMAP::ModelIgnoreFlags::Nothing, LINEOFSIGHT_ALL_CHECKS, collisionHeight, combatReach))
+            {
+                continue;
             }
 
             std::map<Unit*, uint8>::iterator existing = targets.find(*itr);

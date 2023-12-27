@@ -18,11 +18,12 @@
 #ifndef __UNIT_H
 #define __UNIT_H
 
-#include "EventProcessor.h"
 #include "EnumFlag.h"
+#include "EventProcessor.h"
 #include "FollowerRefMgr.h"
 #include "FollowerReference.h"
 #include "HostileRefMgr.h"
+#include "ItemTemplate.h"
 #include "MotionMaster.h"
 #include "Object.h"
 #include "Optional.h"
@@ -251,7 +252,9 @@ enum UnitModifierType
 enum WeaponDamageRange
 {
     MINDAMAGE,
-    MAXDAMAGE
+    MAXDAMAGE,
+
+    MAX_WEAPON_DAMAGE_RANGE
 };
 
 enum UnitMods
@@ -308,13 +311,13 @@ enum BaseModType
 
 #define MOD_END (PCT_MOD+1)
 
-enum DeathState
+enum class DeathState : uint8
 {
-    ALIVE       = 0,
-    JUST_DIED   = 1,
-    CORPSE      = 2,
-    DEAD        = 3,
-    JUST_RESPAWNED = 4,
+    Alive         = 0,
+    JustDied      = 1,
+    Corpse        = 2,
+    Dead          = 3,
+    JustRespawned = 4,
 };
 
 enum UnitState
@@ -388,7 +391,7 @@ enum UnitMoveType
 extern float baseMoveSpeed[MAX_MOVE_TYPE];
 extern float playerBaseMoveSpeed[MAX_MOVE_TYPE];
 
-enum WeaponAttackType
+enum WeaponAttackType : uint8
 {
     BASE_ATTACK   = 0,
     OFF_ATTACK    = 1,
@@ -427,7 +430,7 @@ enum CombatRating
 
 #define MAX_COMBAT_RATING         25
 
-enum DamageEffectType
+enum DamageEffectType : uint8
 {
     DIRECT_DAMAGE           = 0,                            // used for normal weapon damage (not for class abilities or spells)
     SPELL_DIRECT_DAMAGE     = 1,                            // spell/class abilities damage
@@ -578,7 +581,7 @@ enum MovementFlags
     MOVEMENTFLAG_FALLING_SLOW          = 0x20000000,               // active rogue safe fall spell (passive)
     MOVEMENTFLAG_HOVER                 = 0x40000000,               // hover, cannot jump
 
-    // TODO: Check if PITCH_UP and PITCH_DOWN really belong here..
+    /// @todo: Check if PITCH_UP and PITCH_DOWN really belong here..
     MOVEMENTFLAG_MASK_MOVING =
         MOVEMENTFLAG_FORWARD | MOVEMENTFLAG_BACKWARD | MOVEMENTFLAG_STRAFE_LEFT | MOVEMENTFLAG_STRAFE_RIGHT |
         MOVEMENTFLAG_PITCH_UP | MOVEMENTFLAG_PITCH_DOWN | MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR | MOVEMENTFLAG_ASCENDING | MOVEMENTFLAG_DESCENDING |
@@ -714,6 +717,12 @@ enum MeleeHitOutcome : uint8
     MELEE_HIT_GLANCING, MELEE_HIT_CRIT, MELEE_HIT_CRUSHING, MELEE_HIT_NORMAL
 };
 
+enum ExtraAttackSpells
+{
+    SPELL_SWORD_SPECIALIZATION   = 16459,
+    SPELL_HACK_AND_SLASH         = 66923
+};
+
 class DispelInfo
 {
 public:
@@ -763,6 +772,10 @@ private:
     uint32 m_block;
     uint32 m_hitMask;
     uint32 m_cleanDamage;
+
+    // amalgamation constructor (used for proc)
+    DamageInfo(DamageInfo const& dmg1, DamageInfo const& dmg2);
+
 public:
     DamageInfo(Unit* attacker, Unit* victim, uint32 damage, SpellInfo const* spellInfo, SpellSchoolMask schoolMask, DamageEffectType damageType, WeaponAttackType attackType, uint32 cleanDamage = 0);
     explicit DamageInfo(CalcDamageInfo& dmgInfo);
@@ -870,10 +883,15 @@ struct CalcDamageInfo
 {
     Unit*  attacker;             // Attacker
     Unit*  target;               // Target for damage
-    uint32 damageSchoolMask;
-    uint32 damage;
-    uint32 absorb;
-    uint32 resist;
+
+    struct
+    {
+        uint32 damageSchoolMask;
+        uint32 damage;
+        uint32 absorb;
+        uint32 resist;
+    } damages[MAX_ITEM_PROTO_DAMAGES];
+
     uint32 blocked_amount;
     uint32 HitInfo;
     uint32 TargetState;
@@ -883,7 +901,7 @@ struct CalcDamageInfo
     uint32 procVictim;
     uint32 procEx;
     uint32 cleanDamage;          // Used only for rage calculation
-    MeleeHitOutcome hitOutCome;  // TODO: remove this field (need use TargetState)
+    MeleeHitOutcome hitOutCome;  /// @todo: remove this field (need use TargetState)
 };
 
 // Spell damage info structure based on structure sending in SMSG_SPELLNONMELEEDAMAGELOG opcode
@@ -1322,7 +1340,7 @@ public:
 
     void Update(uint32 time) override;
 
-    void setAttackTimer(WeaponAttackType type, int32 time) { m_attackTimer[type] = time; }
+    void setAttackTimer(WeaponAttackType type, int32 time) { m_attackTimer[type] = time; }  /// @todo - Look to convert to std::chrono
     void resetAttackTimer(WeaponAttackType type = BASE_ATTACK);
     [[nodiscard]] int32 getAttackTimer(WeaponAttackType type) const { return m_attackTimer[type]; }
     [[nodiscard]] bool isAttackReady(WeaponAttackType type = BASE_ATTACK) const { return m_attackTimer[type] <= 0; }
@@ -1335,7 +1353,7 @@ public:
     bool IsWithinCombatRange(Unit const* obj, float dist2compare) const;
     bool IsWithinMeleeRange(Unit const* obj, float dist = 0.f) const;
     float GetMeleeRange(Unit const* target) const;
-    [[nodiscard]] virtual SpellSchoolMask GetMeleeDamageSchoolMask() const;
+    virtual SpellSchoolMask GetMeleeDamageSchoolMask(WeaponAttackType attackType = BASE_ATTACK, uint8 damageIndex = 0) const = 0;
     bool GetRandomContactPoint(Unit const* target, float& x, float& y, float& z, bool force = false) const;
     uint32 m_extraAttacks;
     bool m_canDualWield;
@@ -1400,8 +1418,10 @@ public:
     [[nodiscard]] bool IsTotem() const { return m_unitTypeMask & UNIT_MASK_TOTEM; }
     [[nodiscard]] bool IsVehicle() const { return m_unitTypeMask & UNIT_MASK_VEHICLE; }
 
+    /// @deprecated Use GetLevel() instead!
     [[nodiscard]] uint8 getLevel() const { return uint8(GetUInt32Value(UNIT_FIELD_LEVEL)); }
-    uint8 getLevelForTarget(WorldObject const* /*target*/) const override { return getLevel(); }
+    [[nodiscard]] uint8 GetLevel() const { return getLevel(); }
+    uint8 getLevelForTarget(WorldObject const* /*target*/) const override { return GetLevel(); }
     void SetLevel(uint8 lvl, bool showLevelChange = true);
     [[nodiscard]] uint8 getRace(bool original = false) const;
     void setRace(uint8 race);
@@ -1409,6 +1429,8 @@ public:
     [[nodiscard]] uint8 getClass() const { return GetByteValue(UNIT_FIELD_BYTES_0, 1); }
     [[nodiscard]] uint32 getClassMask() const { return 1 << (getClass() - 1); }
     [[nodiscard]] uint8 getGender() const { return GetByteValue(UNIT_FIELD_BYTES_0, 2); }
+    [[nodiscard]] DisplayRace GetDisplayRaceFromModelId(uint32 modelId) const;
+    [[nodiscard]] DisplayRace GetDisplayRace() const { return GetDisplayRaceFromModelId(GetDisplayId()); };
 
     [[nodiscard]] float GetStat(Stats stat) const { return float(GetUInt32Value(static_cast<uint16>(UNIT_FIELD_STAT0) + stat)); }
     void SetStat(Stats stat, int32 val) { SetStatInt32Value(static_cast<uint16>(UNIT_FIELD_STAT0) + stat, val); }
@@ -1527,7 +1549,7 @@ public:
     void Mount(uint32 mount, uint32 vehicleId = 0, uint32 creatureEntry = 0);
     void Dismount();
 
-    uint16 GetMaxSkillValueForLevel(Unit const* target = nullptr) const { return (target ? getLevelForTarget(target) : getLevel()) * 5; }
+    uint16 GetMaxSkillValueForLevel(Unit const* target = nullptr) const { return (target ? getLevelForTarget(target) : GetLevel()) * 5; }
     static void DealDamageMods(Unit const* victim, uint32& damage, uint32* absorb);
     static uint32 DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage const* cleanDamage = nullptr, DamageEffectType damagetype = DIRECT_DAMAGE, SpellSchoolMask damageSchoolMask = SPELL_SCHOOL_MASK_NORMAL, SpellInfo const* spellProto = nullptr, bool durabilityLoss = true, bool allowGM = false, Spell const* spell = nullptr);
     static void Kill(Unit* killer, Unit* victim, bool durabilityLoss = true, WeaponAttackType attackType = BASE_ATTACK, SpellInfo const* spellProto = nullptr);
@@ -1543,7 +1565,7 @@ public:
     void HandleEmoteCommand(uint32 emoteId);
     void AttackerStateUpdate (Unit* victim, WeaponAttackType attType = BASE_ATTACK, bool extra = false, bool ignoreCasting = false);
 
-    void CalculateMeleeDamage(Unit* victim, uint32 damage, CalcDamageInfo* damageInfo, WeaponAttackType attackType = BASE_ATTACK, const bool sittingVictim = false);
+    void CalculateMeleeDamage(Unit* victim, CalcDamageInfo* damageInfo, WeaponAttackType attackType = BASE_ATTACK, const bool sittingVictim = false);
     void DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss);
 
     void HandleProcExtraAttackFor(Unit* victim);
@@ -1568,10 +1590,11 @@ public:
 
     static void ApplyResilience(Unit const* victim, float* crit, int32* damage, bool isCrit, CombatRating type);
 
-    float MeleeSpellMissChance(Unit const* victim, WeaponAttackType attType, int32 skillDiff, uint32 spellId) const;
-    SpellMissInfo MeleeSpellHitResult(Unit* victim, SpellInfo const* spell);
-    SpellMissInfo MagicSpellHitResult(Unit* victim, SpellInfo const* spell);
-    SpellMissInfo SpellHitResult(Unit* victim, SpellInfo const* spell, bool canReflect = false);
+    [[nodiscard]] float MeleeSpellMissChance(Unit const* victim, WeaponAttackType attType, int32 skillDiff, uint32 spellId) const;
+    [[nodiscard]] SpellMissInfo MeleeSpellHitResult(Unit* victim, SpellInfo const* spell);
+    [[nodiscard]] SpellMissInfo MagicSpellHitResult(Unit* victim, SpellInfo const* spell);
+    [[nodiscard]] SpellMissInfo SpellHitResult(Unit* victim, SpellInfo const* spell, bool canReflect = false);
+    [[nodiscard]] SpellMissInfo SpellHitResult(Unit* victim, Spell const* spell, bool canReflect = false);
 
     [[nodiscard]] float GetUnitDodgeChance()    const;
     [[nodiscard]] float GetUnitParryChance()    const;
@@ -1608,7 +1631,7 @@ public:
 
         return value;
     }
-    uint32 GetUnitMeleeSkill(Unit const* target = nullptr) const { return (target ? getLevelForTarget(target) : getLevel()) * 5; }
+    uint32 GetUnitMeleeSkill(Unit const* target = nullptr) const { return (target ? getLevelForTarget(target) : GetLevel()) * 5; }
     uint32 GetDefenseSkillValue(Unit const* target = nullptr) const;
     uint32 GetWeaponSkillValue(WeaponAttackType attType, Unit const* target = nullptr) const;
     [[nodiscard]] float GetWeaponProcChance() const;
@@ -1688,7 +1711,7 @@ public:
 
     bool isTargetableForAttack(bool checkFakeDeath = true, Unit const* byWho = nullptr) const;
 
-    bool IsValidAttackTarget(Unit const* target) const;
+    bool IsValidAttackTarget(Unit const* target, SpellInfo const* bySpell = nullptr) const;
     bool _IsValidAttackTarget(Unit const* target, SpellInfo const* bySpell, WorldObject const* obj = nullptr) const;
 
     bool IsValidAssistTarget(Unit const* target) const;
@@ -1728,7 +1751,7 @@ public:
     void SendAttackStateUpdate(uint32 HitInfo, Unit* target, uint8 SwingType, SpellSchoolMask damageSchoolMask, uint32 Damage, uint32 AbsorbDamage, uint32 Resist, VictimState TargetState, uint32 BlockedAmount);
     void SendSpellNonMeleeDamageLog(SpellNonMeleeDamage* log);
     void SendSpellNonMeleeReflectLog(SpellNonMeleeDamage* log, Unit* attacker);
-    void SendSpellNonMeleeDamageLog(Unit* target, SpellInfo const* spellInfo, uint32 Damage, SpellSchoolMask damageSchoolMask, uint32 AbsorbedDamage, uint32 Resist, bool PhysicalDamage, uint32 Blocked, bool CriticalHit = false);
+    void SendSpellNonMeleeDamageLog(Unit* target, SpellInfo const* spellInfo, uint32 Damage, SpellSchoolMask damageSchoolMask, uint32 AbsorbedDamage, uint32 Resist, bool PhysicalDamage, uint32 Blocked, bool CriticalHit = false, bool Split = false);
     void SendPeriodicAuraLog(SpellPeriodicAuraLogInfo* pInfo);
     void SendSpellMiss(Unit* target, uint32 spellID, SpellMissInfo missInfo);
     void SendSpellDamageResist(Unit* target, uint32 spellId);
@@ -1780,9 +1803,9 @@ public:
 
     void BuildHeartBeatMsg(WorldPacket* data) const;
 
-    [[nodiscard]] bool IsAlive() const { return (m_deathState == ALIVE); };
-    [[nodiscard]] bool isDying() const { return (m_deathState == JUST_DIED); };
-    [[nodiscard]] bool isDead() const { return (m_deathState == DEAD || m_deathState == CORPSE); };
+    [[nodiscard]] bool IsAlive() const { return (m_deathState == DeathState::Alive); };
+    [[nodiscard]] bool isDying() const { return (m_deathState == DeathState::JustDied); };
+    [[nodiscard]] bool isDead() const { return (m_deathState == DeathState::Dead || m_deathState == DeathState::Corpse); };
     DeathState getDeathState() { return m_deathState; };
     virtual void setDeathState(DeathState s, bool despawn = false);           // overwrited in Creature/Player/Pet
 
@@ -1956,7 +1979,7 @@ public:
     AuraApplication* GetAuraApplicationOfRankedSpell(uint32 spellId, ObjectGuid casterGUID = ObjectGuid::Empty, ObjectGuid itemCasterGUID = ObjectGuid::Empty, uint8 reqEffMask = 0, AuraApplication* except = nullptr) const;
     [[nodiscard]] Aura* GetAuraOfRankedSpell(uint32 spellId, ObjectGuid casterGUID = ObjectGuid::Empty, ObjectGuid itemCasterGUID = ObjectGuid::Empty, uint8 reqEffMask = 0) const;
 
-    void GetDispellableAuraList(Unit* caster, uint32 dispelMask, DispelChargesList& dispelList);
+    void GetDispellableAuraList(Unit* caster, uint32 dispelMask, DispelChargesList& dispelList, SpellInfo const* dispelSpell);
 
     [[nodiscard]] bool HasAuraEffect(uint32 spellId, uint8 effIndex, ObjectGuid caster = ObjectGuid::Empty) const;
     [[nodiscard]] uint32 GetAuraCount(uint32 spellId) const;
@@ -2089,10 +2112,10 @@ public:
     virtual void UpdateAttackPowerAndDamage(bool ranged = false) = 0;
     virtual void UpdateDamagePhysical(WeaponAttackType attType);
     float GetTotalAttackPowerValue(WeaponAttackType attType, Unit* pVictim = nullptr) const;
-    [[nodiscard]] float GetWeaponDamageRange(WeaponAttackType attType, WeaponDamageRange type) const;
-    void SetBaseWeaponDamage(WeaponAttackType attType, WeaponDamageRange damageRange, float value) { m_weaponDamage[attType][damageRange] = value; }
-    virtual void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, bool addTotalPct, float& minDamage, float& maxDamage) = 0;
-    uint32 CalculateDamage(WeaponAttackType attType, bool normalized, bool addTotalPct);
+    [[nodiscard]] float GetWeaponDamageRange(WeaponAttackType attType, WeaponDamageRange type, uint8 damageIndex = 0) const;
+    void SetBaseWeaponDamage(WeaponAttackType attType, WeaponDamageRange damageRange, float value, uint8 damageIndex = 0) { m_weaponDamage[attType][damageRange][damageIndex] = value; }
+    virtual void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, bool addTotalPct, float& minDamage, float& maxDamage, uint8 damageIndex = 0) = 0;
+    uint32 CalculateDamage(WeaponAttackType attType, bool normalized, bool addTotalPct, uint8 itemDamagesMask = 0);
     float GetAPMultiplier(WeaponAttackType attType, bool normalized);
 
     bool isInFrontInMap(Unit const* target, float distance, float arc = M_PI) const;
@@ -2138,6 +2161,8 @@ public:
     void AddInterruptMask(uint32 mask) { m_interruptMask |= mask; }
     void UpdateInterruptMask();
 
+    virtual float GetNativeObjectScale() const { return 1.0f; }
+    virtual void RecalculateObjectScale();
     [[nodiscard]] uint32 GetDisplayId() const { return GetUInt32Value(UNIT_FIELD_DISPLAYID); }
     virtual void SetDisplayId(uint32 modelId);
     [[nodiscard]] uint32 GetNativeDisplayId() const { return GetUInt32Value(UNIT_FIELD_NATIVEDISPLAYID); }
@@ -2177,8 +2202,8 @@ public:
     uint32 SpellHealingBonusDone(Unit* victim, SpellInfo const* spellProto, uint32 healamount, DamageEffectType damagetype, uint8 effIndex, float TotalMod = 0.0f, uint32 stack = 1);
     uint32 SpellHealingBonusTaken(Unit* caster, SpellInfo const* spellProto, uint32 healamount, DamageEffectType damagetype, uint32 stack = 1);
 
-    uint32 MeleeDamageBonusDone(Unit* pVictim, uint32 damage, WeaponAttackType attType, SpellInfo const* spellProto = nullptr);
-    uint32 MeleeDamageBonusTaken(Unit* attacker, uint32 pdamage, WeaponAttackType attType, SpellInfo const* spellProto = nullptr);
+    uint32 MeleeDamageBonusDone(Unit* pVictim, uint32 damage, WeaponAttackType attType, SpellInfo const* spellProto = nullptr, SpellSchoolMask damageSchoolMask = SPELL_SCHOOL_MASK_NORMAL);
+    uint32 MeleeDamageBonusTaken(Unit* attacker, uint32 pdamage, WeaponAttackType attType, SpellInfo const* spellProto = nullptr, SpellSchoolMask damageSchoolMask = SPELL_SCHOOL_MASK_NORMAL);
 
     bool   isSpellBlocked(Unit* victim, SpellInfo const* spellProto, WeaponAttackType attackType = BASE_ATTACK);
     bool   isBlockCritical();
@@ -2199,12 +2224,14 @@ public:
 
     void ApplySpellImmune(uint32 spellId, uint32 op, uint32 type, bool apply, SpellImmuneBlockType blockType = SPELL_BLOCK_TYPE_ALL);
     void ApplySpellDispelImmunity(SpellInfo const* spellProto, DispelType type, bool apply);
-    virtual bool IsImmunedToSpell(SpellInfo const* spellInfo);
+    virtual bool IsImmunedToSpell(SpellInfo const* spellInfo, Spell const* spell = nullptr);
     // redefined in Creature
     [[nodiscard]] bool IsImmunedToDamage(SpellSchoolMask meleeSchoolMask) const;
-    bool IsImmunedToDamage(SpellInfo const* spellInfo) const;
+    [[nodiscard]] bool IsImmunedToDamage(SpellInfo const* spellInfo) const;
+    [[nodiscard]] bool IsImmunedToDamage(Spell const* spell) const;
     [[nodiscard]] bool IsImmunedToSchool(SpellSchoolMask meleeSchoolMask) const;
-    bool IsImmunedToSchool(SpellInfo const* spellInfo) const;
+    [[nodiscard]] bool IsImmunedToSchool(SpellInfo const* spellInfo) const;
+    [[nodiscard]] bool IsImmunedToSchool(Spell const* spell) const;
     [[nodiscard]] bool IsImmunedToDamageOrSchool(SpellSchoolMask meleeSchoolMask) const;
     bool IsImmunedToDamageOrSchool(SpellInfo const* spellInfo) const;
     virtual bool IsImmunedToSpellEffect(SpellInfo const* spellInfo, uint32 index) const;
@@ -2252,7 +2279,7 @@ public:
     [[nodiscard]] uint16 GetExtraUnitMovementFlags() const { return m_movementInfo.flags2; }
     void SetExtraUnitMovementFlags(uint16 f) { m_movementInfo.flags2 = f; }
 
-    void SetControlled(bool apply, UnitState state);
+    void SetControlled(bool apply, UnitState state, Unit* source = nullptr, bool isFear = false);
     void DisableRotate(bool apply);
     void DisableSpline();
 
@@ -2308,7 +2335,7 @@ public:
     void CastPetAura(PetAura const* aura);
     bool IsPetAura(Aura const* aura);
 
-    [[nodiscard]] uint32 GetModelForForm(ShapeshiftForm form) const;
+    [[nodiscard]] uint32 GetModelForForm(ShapeshiftForm form, uint32 spellId) const;
     uint32 GetModelForTotem(PlayerTotemType totemType);
 
     // Redirect Threat
@@ -2432,6 +2459,8 @@ public:
 
     std::string GetDebugInfo() const override;
 
+    [[nodiscard]] uint32 GetOldFactionId() const { return _oldFactionId; }
+
 protected:
     explicit Unit (bool isWorldObject);
 
@@ -2482,7 +2511,7 @@ protected:
     uint32 m_interruptMask;
 
     float m_auraModifiersGroup[UNIT_MOD_END][MODIFIER_TYPE_END];
-    float m_weaponDamage[MAX_ATTACK][2];
+    float m_weaponDamage[MAX_ATTACK][MAX_WEAPON_DAMAGE_RANGE][MAX_ITEM_PROTO_DAMAGES];
     bool m_canModifyStats;
     VisibleAuraMap m_visibleAuras;
 
@@ -2523,7 +2552,7 @@ private:
     void ProcSkillsAndReactives(bool isVictim, Unit* procTarget, uint32 typeMask, uint32 hitMask, WeaponAttackType attType);
 
 protected:
-    void SetFeared(bool apply);
+    void SetFeared(bool apply, Unit* fearedBy = nullptr, bool isFear = false);
     void SetConfused(bool apply);
     void SetStunned(bool apply);
     void SetRooted(bool apply, bool isStun = false);

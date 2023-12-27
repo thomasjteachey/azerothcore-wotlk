@@ -15,19 +15,19 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "CreatureScript.h"
+#include "GridNotifiers.h"
+#include "Player.h"
+#include "SpellAuraEffects.h"
+#include "SpellMgr.h"
+#include "SpellScript.h"
+#include "SpellScriptLoader.h"
+#include "TemporarySummon.h"
 /*
  * Scripts for spells with SPELLFAMILY_PRIEST and SPELLFAMILY_GENERIC spells used by priest players.
  * Ordered alphabetically using scriptname.
  * Scriptnames of files in this file should be prefixed with "spell_pri_".
  */
-
-#include "GridNotifiers.h"
-#include "Player.h"
-#include "ScriptMgr.h"
-#include "SpellAuraEffects.h"
-#include "SpellMgr.h"
-#include "SpellScript.h"
-#include "TemporarySummon.h"
 
 enum PriestSpells
 {
@@ -49,6 +49,7 @@ enum PriestSpells
     SPELL_PRIEST_SHADOW_WORD_DEATH                  = 32409,
     SPELL_PRIEST_T9_HEALING_2P                      = 67201,
     SPELL_PRIEST_VAMPIRIC_TOUCH_DISPEL              = 64085,
+    SPELL_PRIEST_T4_4P_FLEXIBILITY                  = 37565,
 
     SPELL_GENERIC_ARENA_DAMPENING                   = 74410,
     SPELL_GENERIC_BATTLEGROUND_DAMPENING            = 74411,
@@ -254,7 +255,7 @@ class spell_pri_divine_aegis : public AuraScript
         if (AuraEffect const* aegis = eventInfo.GetProcTarget()->GetAuraEffect(SPELL_PRIEST_DIVINE_AEGIS, EFFECT_0))
             absorb += aegis->GetAmount();
 
-        absorb = std::min(absorb, eventInfo.GetProcTarget()->getLevel() * 125);
+        absorb = std::min(absorb, eventInfo.GetProcTarget()->GetLevel() * 125);
 
         GetTarget()->CastCustomSpell(SPELL_PRIEST_DIVINE_AEGIS, SPELLVALUE_BASE_POINT0, absorb, eventInfo.GetProcTarget(), true, nullptr, aurEff);
     }
@@ -994,6 +995,28 @@ class spell_pri_mind_control : public AuraScript
     }
 };
 
+// 37565 - Flexibility | Item - Priest T4 Holy/Discipline 4P Bonus
+class spell_pri_t4_4p_bonus : public AuraScript
+{
+    PrepareAuraScript(spell_pri_t4_4p_bonus);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_PRIEST_T4_4P_FLEXIBILITY });
+    }
+
+    void HandleProc(AuraEffect const* /*aurEff*/, ProcEventInfo& /*eventInfo*/)
+    {
+        PreventDefaultAction();
+        GetTarget()->RemoveAurasDueToSpell(SPELL_PRIEST_T4_4P_FLEXIBILITY);
+    }
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_pri_t4_4p_bonus::HandleProc, EFFECT_ALL, SPELL_AURA_OVERRIDE_CLASS_SCRIPTS);
+    }
+};
+
 // 26169 - Oracle Healing Bonus
 class spell_pri_aq_3p_bonus : public AuraScript
 {
@@ -1326,7 +1349,7 @@ void AddSC_priest_spell_scripts()
     RegisterSpellScript(spell_pri_mana_burn);
     RegisterSpellScript(spell_pri_mana_leech);
     RegisterSpellScript(spell_pri_mind_sear);
-    new spell_pri_pain_and_suffering_dummy();
+    RegisterSpellScript(spell_pri_pain_and_suffering_proc);
     RegisterSpellScript(spell_pri_pain_and_suffering_proc);
     RegisterSpellScript(spell_pri_penance);
     RegisterSpellAndAuraScriptPair(spell_pri_power_word_shield, spell_pri_power_word_shield_aura);
@@ -1335,6 +1358,7 @@ void AddSC_priest_spell_scripts()
     RegisterSpellScript(spell_pri_shadow_word_death);
     RegisterSpellScript(spell_pri_vampiric_touch);
     RegisterSpellScript(spell_pri_mind_control);
+    RegisterSpellScript(spell_pri_t4_4p_bonus);
     RegisterSpellScript(spell_pri_aq_3p_bonus);
     RegisterSpellScript(spell_pri_body_and_soul);
     RegisterSpellScript(spell_pri_glyph_of_dispel_magic);

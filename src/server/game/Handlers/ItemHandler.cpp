@@ -727,7 +727,6 @@ void WorldSession::HandleReadItem(WorldPacket& recvData)
 
 void WorldSession::HandleSellItemOpcode(WorldPacket& recvData)
 {
-    LOG_DEBUG("network", "WORLD: Received CMSG_SELL_ITEM");
     ObjectGuid vendorguid, itemguid;
     uint32 count;
 
@@ -818,6 +817,51 @@ void WorldSession::HandleSellItemOpcode(WorldPacket& recvData)
                 if (sWorld->getBoolConfig(CONFIG_ITEMDELETE_VENDOR))
                     recoveryItem(pItem);
 
+                uint32 maxDurability = pItem->GetUInt32Value(ITEM_FIELD_MAXDURABILITY);
+                if (maxDurability)
+                {
+                    uint32 curDurability = pItem->GetUInt32Value(ITEM_FIELD_DURABILITY);
+                    uint32 LostDurability = maxDurability - curDurability;
+
+                    if (LostDurability > 0)
+                    {
+                        DurabilityCostsEntry const* dcost = sDurabilityCostsStore.LookupEntry(pProto->ItemLevel);
+                        if (!dcost)
+                        {
+                            _player->SendSellError(SELL_ERR_CANT_SELL_ITEM, creature, itemguid, 0);
+                            LOG_ERROR("network.opcode", "WORLD: HandleSellItemOpcode - Wrong item lvl {} for item {} count = {}", pProto->ItemLevel, pItem->GetEntry(), count);
+                            return;
+                        }
+
+                        uint32 dQualitymodEntryId = (pProto->Quality + 1) * 2;
+                        DurabilityQualityEntry const* dQualitymodEntry = sDurabilityQualityStore.LookupEntry(dQualitymodEntryId);
+                        if (!dQualitymodEntry)
+                        {
+                            _player->SendSellError(SELL_ERR_CANT_SELL_ITEM, creature, itemguid, 0);
+                            LOG_ERROR("network.opcode", "WORLD: HandleSellItemOpcode - Wrong dQualityModEntry {} for item {} count = {}", dQualitymodEntryId, pItem->GetEntry(), count);
+                            return;
+                        }
+
+                        uint32 dmultiplier = dcost->multiplier[ItemSubClassToDurabilityMultiplierId(pProto->Class, pProto->SubClass)];
+                        uint32 refund = uint32(std::ceil(LostDurability * dmultiplier * double(dQualitymodEntry->quality_mod)));
+
+                        if (!refund)
+                        {
+                            refund = 1;
+                        }
+
+                        //starter items can cost more to refund than vendorprice
+                        if (refund > money)
+                        {
+                            money = 1;
+                        }
+                        else
+                        {
+                            money -= refund;
+                        }
+                    }
+                }
+
                 if (count < pItem->GetCount())               // need split items
                 {
                     Item* pNewItem = pItem->CloneItem(count, _player);
@@ -828,13 +872,15 @@ void WorldSession::HandleSellItemOpcode(WorldPacket& recvData)
                         return;
                     }
 
+                    pNewItem->SetUInt32Value(ITEM_FIELD_DURABILITY, pItem->GetUInt32Value(ITEM_FIELD_DURABILITY));
+
                     pItem->SetCount(pItem->GetCount() - count);
                     _player->ItemRemovedQuestCheck(pItem->GetEntry(), count);
                     if (_player->IsInWorld())
                         pItem->SendUpdateToPlayer(_player);
                     pItem->SetState(ITEM_CHANGED, _player);
 
-                    _player->AddItemToBuyBackSlot(pNewItem);
+                    _player->AddItemToBuyBackSlot(pNewItem, money);
                     if (_player->IsInWorld())
                         pNewItem->SendUpdateToPlayer(_player);
                 }
@@ -843,7 +889,7 @@ void WorldSession::HandleSellItemOpcode(WorldPacket& recvData)
                     _player->ItemRemovedQuestCheck(pItem->GetEntry(), pItem->GetCount());
                     _player->RemoveItem(pItem->GetBagSlot(), pItem->GetSlot(), true);
                     pItem->RemoveFromUpdateQueueOf(_player);
-                    _player->AddItemToBuyBackSlot(pItem);
+                    _player->AddItemToBuyBackSlot(pItem, money);
                     _player->UpdateTitansGrip();
                 }
 
@@ -861,7 +907,6 @@ void WorldSession::HandleSellItemOpcode(WorldPacket& recvData)
 
 void WorldSession::HandleBuybackItem(WorldPacket& recvData)
 {
-    LOG_DEBUG("network", "WORLD: Received CMSG_BUYBACK_ITEM");
     ObjectGuid vendorguid;
     uint32 slot;
 
@@ -917,7 +962,6 @@ void WorldSession::HandleBuybackItem(WorldPacket& recvData)
 
 void WorldSession::HandleBuyItemInSlotOpcode(WorldPacket& recvData)
 {
-    LOG_DEBUG("network", "WORLD: Received CMSG_BUY_ITEM_IN_SLOT");
     ObjectGuid vendorguid, bagguid;
     uint32 item, slot, count;
     uint8 bagslot;
@@ -959,7 +1003,6 @@ void WorldSession::HandleBuyItemInSlotOpcode(WorldPacket& recvData)
 
 void WorldSession::HandleBuyItemOpcode(WorldPacket& recvData)
 {
-    LOG_DEBUG("network", "WORLD: Received CMSG_BUY_ITEM");
     ObjectGuid vendorguid;
     uint32 item, slot, count;
     uint8 unk1;

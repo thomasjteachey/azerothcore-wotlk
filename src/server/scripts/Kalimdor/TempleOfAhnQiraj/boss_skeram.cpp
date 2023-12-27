@@ -15,9 +15,10 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
+#include "CreatureScript.h"
 #include "ScriptedCreature.h"
 #include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "temple_of_ahnqiraj.h"
 
 enum Yells
@@ -134,14 +135,16 @@ struct boss_skeram : public BossAI
         {
             _JustDied();
             Talk(SAY_DEATH);
+            if (me->GetMap() && me->GetMap()->ToInstanceMap())
+                me->GetMap()->ToInstanceMap()->PermBindAllPlayers();
         }
         else
             me->RemoveCorpse();
     }
 
-    void EnterCombat(Unit* /*who*/) override
+    void JustEngagedWith(Unit* /*who*/) override
     {
-        _EnterCombat();
+        _JustEngagedWith();
         events.Reset();
 
         events.ScheduleEvent(EVENT_ARCANE_EXPLOSION, 6s, 12s);
@@ -176,7 +179,7 @@ struct boss_skeram : public BossAI
                     break;
                 case EVENT_BLINK:
                     DoCast(me, BlinkSpells[urand(0, 2)]);
-                    DoResetThreat();
+                    DoResetThreatList();
                     events.ScheduleEvent(EVENT_BLINK, 10s, 30s);
                     break;
                 case EVENT_EARTH_SHOCK:
@@ -194,7 +197,7 @@ struct boss_skeram : public BossAI
                             DoTeleport(image);
                         }
                     }
-                    DoResetThreat();
+                    DoResetThreatList();
                     events.RescheduleEvent(EVENT_BLINK, 10s, 30s);
                     break;
                 case EVENT_INIT_IMAGE:
@@ -258,3 +261,4 @@ void AddSC_boss_skeram()
     RegisterTempleOfAhnQirajCreatureAI(boss_skeram);
     RegisterSpellScript(spell_skeram_arcane_explosion);
 }
+

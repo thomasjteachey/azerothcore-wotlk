@@ -25,7 +25,6 @@
 #include <boost/core/demangle.hpp>
 #include <cctype>
 #include <cstdarg>
-#include <ctime>
 #include <sstream>
 #include <string>
 #include <utf8.h>
@@ -555,7 +554,7 @@ std::string Acore::Impl::ByteArrayToHexStr(uint8 const* bytes, size_t arrayLen, 
     for (int32 i = init; i != end; i += op)
     {
         char buffer[4];
-        sprintf(buffer, "%02X", bytes[i]);
+        snprintf(buffer, sizeof(buffer), "%02X", bytes[i]);
         ss << buffer;
     }
 

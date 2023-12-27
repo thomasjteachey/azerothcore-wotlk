@@ -15,10 +15,12 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "CreatureScript.h"
+#include "GameObjectScript.h"
 #include "Player.h"
-#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 #include "SpellScript.h"
+#include "SpellScriptLoader.h"
 #include "blackwing_lair.h"
 
 enum Say
@@ -108,17 +110,35 @@ public:
 
         bool CanAIAttack(Unit const* target) const override
         {
-            return !(target->GetTypeId() == TYPEID_UNIT && !secondPhase) && !target->HasAura(SPELL_CONFLAGRATION);
+            if (target->GetTypeId() == TYPEID_UNIT && !secondPhase)
+            {
+                return false;
+            }
+
+            if (me->GetThreatMgr().GetThreatListSize() > 1)
+            {
+                ThreatContainer::StorageType::const_iterator lastRef = me->GetThreatMgr().GetOnlineContainer().GetThreatList().end();
+                --lastRef;
+                if (Unit* lastTarget = (*lastRef)->getTarget())
+                {
+                    if (lastTarget != target)
+                    {
+                        return !target->HasAura(SPELL_CONFLAGRATION);
+                    }
+                }
+            }
+
+            return true;
         }
 
-        void EnterCombat(Unit* /*victim*/) override
+        void JustEngagedWith(Unit* /*who*/) override
         {
-            _EnterCombat();
+            _JustEngagedWith();
 
-            events.ScheduleEvent(EVENT_CLEAVE, 15000);
-            events.ScheduleEvent(EVENT_STOMP, 35000);
-            events.ScheduleEvent(EVENT_FIREBALL, 7000);
-            events.ScheduleEvent(EVENT_CONFLAGRATION, 12000);
+            events.ScheduleEvent(EVENT_CLEAVE, 15s);
+            events.ScheduleEvent(EVENT_STOMP, 35s);
+            events.ScheduleEvent(EVENT_FIREBALL, 7s);
+            events.ScheduleEvent(EVENT_CONFLAGRATION, 12s);
 
             instance->SetData(DATA_EGG_EVENT, IN_PROGRESS);
         }
@@ -232,22 +252,19 @@ public:
                 {
                     case EVENT_CLEAVE:
                         DoCastVictim(SPELL_CLEAVE);
-                        events.ScheduleEvent(EVENT_CLEAVE, urand(7000, 10000));
+                        events.ScheduleEvent(EVENT_CLEAVE, 7s, 10s);
                         break;
                     case EVENT_STOMP:
                         DoCastVictim(SPELL_WARSTOMP);
-                        events.ScheduleEvent(EVENT_STOMP, urand(15000, 25000));
+                        events.ScheduleEvent(EVENT_STOMP, 15s, 25s);
                         break;
                     case EVENT_FIREBALL:
                         DoCastVictim(SPELL_FIREBALLVOLLEY);
-                        events.ScheduleEvent(EVENT_FIREBALL, urand(12000, 15000));
+                        events.ScheduleEvent(EVENT_FIREBALL, 12s, 15s);
                         break;
                     case EVENT_CONFLAGRATION:
                         DoCastVictim(SPELL_CONFLAGRATION);
-                        if (me->GetVictim() && me->GetVictim()->HasAura(SPELL_CONFLAGRATION))
-                            if (Unit* target = SelectTarget(SelectTargetMethod::Random, 1))
-                                me->TauntApply(target);
-                        events.ScheduleEvent(EVENT_CONFLAGRATION, 30000);
+                        events.ScheduleEvent(EVENT_CONFLAGRATION, 30s);
                         break;
                 }
             }
@@ -275,7 +292,7 @@ public:
     bool OnGossipHello(Player* player, GameObject* go) override
     {
         if (InstanceScript* instance = go->GetInstanceScript())
-            if (instance->GetData(DATA_EGG_EVENT) != DONE && !player->HasAura(SPELL_MIND_EXHAUSTION))
+            if (instance->GetData(DATA_EGG_EVENT) != DONE && !player->HasAura(SPELL_MIND_EXHAUSTION) && !player->GetPet())
                 if (Creature* razor = ObjectAccessor::GetCreature(*go, instance->GetGuidData(DATA_RAZORGORE_THE_UNTAMED)))
                 {
                     razor->AI()->SetGUID(player->GetGUID());
@@ -332,3 +349,4 @@ void AddSC_boss_razorgore()
     new go_orb_of_domination();
     new spell_egg_event();
 }
+

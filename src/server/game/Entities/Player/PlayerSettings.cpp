@@ -48,7 +48,7 @@ void Player::_LoadCharacterSettings(PreparedQueryResult result)
 
             uint32 count = 0;
 
-            for (auto token : tokens)
+            for (auto& token : tokens)
             {
                 if (token.empty())
                 {
@@ -78,6 +78,13 @@ PlayerSetting Player::GetPlayerSetting(std::string source, uint8 index)
         return GetPlayerSetting(source, index);
     }
 
+    PlayerSettingVector settingVector = itr->second;
+    if (settingVector.size() < (uint8)(index + 1))
+    {
+        UpdatePlayerSetting(source, index, 0);
+        return GetPlayerSetting(source, index);
+    }
+
     return itr->second[index];
 }
 
@@ -88,11 +95,11 @@ void Player::_SavePlayerSettings(CharacterDatabaseTransaction trans)
         return;
     }
 
-    for (auto itr : m_charSettingsMap)
+    for (auto& itr : m_charSettingsMap)
     {
         std::ostringstream data;
 
-        for (auto setting : itr.second)
+        for (auto& setting : itr.second)
         {
             data << setting.value << ' ';
         }

@@ -15,10 +15,11 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ScriptMgr.h"
+#include "CreatureScript.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
 #include "SpellScript.h"
-#include "TaskScheduler.h"
+#include "SpellScriptLoader.h"
 #include "temple_of_ahnqiraj.h"
 
 enum Spells
@@ -100,6 +101,7 @@ struct boss_viscidus : public BossAI
     boss_viscidus(Creature* creature) : BossAI(creature, DATA_VISCIDUS)
     {
         me->LowerPlayerDamageReq(me->GetMaxHealth());
+        me->m_CombatDistance = 60.f;
     }
 
     bool CheckInRoom() override
@@ -116,9 +118,7 @@ struct boss_viscidus : public BossAI
     void Reset() override
     {
         BossAI::Reset();
-        events.Reset();
         SoftReset();
-        _scheduler.CancelAll();
         me->RemoveAurasDueToSpell(SPELL_VISCIDUS_SHRINKS);
     }
 
@@ -131,13 +131,25 @@ struct boss_viscidus : public BossAI
         me->RemoveAurasDueToSpell(SPELL_INVIS_SELF);
     }
 
-    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType effType, SpellSchoolMask) override
+    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType effType, SpellSchoolMask spellSchoolMask) override
     {
         if (me->HealthBelowPct(5))
             damage = 0;
 
-        if (!attacker || _phase != PHASE_MELEE)
+        if (!attacker)
+        {
             return;
+        }
+
+        if (_phase != PHASE_MELEE)
+        {
+            if (_phase == PHASE_FROST && effType == DIRECT_DAMAGE && (spellSchoolMask & SPELL_SCHOOL_MASK_FROST) != 0)
+            {
+                ++_hitcounter;
+            }
+
+            return;
+        }
 
         if (effType == DIRECT_DAMAGE)
             ++_hitcounter;
@@ -159,8 +171,7 @@ struct boss_viscidus : public BossAI
             me->AttackStop();
             me->CastStop();
             me->HandleEmoteCommand(EMOTE_ONESHOT_FLYDEATH); // not found in sniff, this is the best one I found
-            _scheduler
-                .Schedule(2500ms, [this](TaskContext /*context*/)
+            scheduler.Schedule(2500ms, [this](TaskContext /*context*/)
                 {
                     DoCastSelf(SPELL_EXPLODE_TRIGGER, true);
                 })
@@ -170,7 +181,7 @@ struct boss_viscidus : public BossAI
                     me->SetAuraStack(SPELL_VISCIDUS_SHRINKS, me, 20);
                     me->LowerPlayerDamageReq(me->GetMaxHealth());
                     me->SetHealth(me->GetMaxHealth() * 0.01f); // set 1% health
-                    DoResetThreat();
+                    DoResetThreatList();
                     me->NearTeleportTo(roomCenter.GetPositionX(),
                         roomCenter.GetPositionY(),
                         roomCenter.GetPositionZ(),
@@ -183,14 +194,23 @@ struct boss_viscidus : public BossAI
             Talk(EMOTE_CRACK);
     }
 
-    void SpellHit(Unit* /*caster*/, SpellInfo const* spell) override
+    void SpellHit(Unit* caster, SpellInfo const* spellInfo) override
     {
-        if (spell->Id == SPELL_REJOIN_VISCIDUS)
+        if (spellInfo->Id == SPELL_REJOIN_VISCIDUS)
         {
             me->RemoveAuraFromStack(SPELL_VISCIDUS_SHRINKS);
         }
 
-        if ((spell->GetSchoolMask() & SPELL_SCHOOL_MASK_FROST) && _phase == PHASE_FROST)
+        SpellSchoolMask spellSchoolMask = spellInfo->GetSchoolMask();
+        if (spellInfo->EquippedItemClass == ITEM_CLASS_WEAPON && spellInfo->EquippedItemSubClassMask & (1 << ITEM_SUBCLASS_WEAPON_WAND))
+        {
+            if (Item* pItem = caster->ToPlayer()->GetWeaponForAttack(RANGED_ATTACK))
+            {
+                spellSchoolMask = SpellSchoolMask(1 << pItem->GetTemplate()->Damage[0].DamageType);
+            }
+        }
+
+        if ((spellSchoolMask & SPELL_SCHOOL_MASK_FROST) && _phase == PHASE_FROST)
         {
             ++_hitcounter;
 
@@ -242,9 +262,9 @@ struct boss_viscidus : public BossAI
         }
     }
 
-    void EnterCombat(Unit* who) override
+    void JustEngagedWith(Unit* who) override
     {
-        BossAI::EnterCombat(who);
+        BossAI::JustEngagedWith(who);
         InitSpells();
     }
 
@@ -261,7 +281,7 @@ struct boss_viscidus : public BossAI
             return;
 
         events.Update(diff);
-        _scheduler.Update(diff);
+        scheduler.Update(diff);
 
         while (uint32 eventId = events.ExecuteEvent())
         {
@@ -296,7 +316,6 @@ struct boss_viscidus : public BossAI
 private:
     uint8 _hitcounter;
     uint8 _phase;
-    TaskScheduler _scheduler;
 };
 
 struct boss_glob_of_viscidus : public ScriptedAI
@@ -309,8 +328,8 @@ struct boss_glob_of_viscidus : public ScriptedAI
     void InitializeAI() override
     {
         me->SetInCombatWithZone();
-        _scheduler.CancelAll();
-        _scheduler.Schedule(2400ms, [this](TaskContext context)
+        scheduler.CancelAll();
+        scheduler.Schedule(2400ms, [this](TaskContext context)
             {
                 me->GetMotionMaster()->MovePoint(ROOM_CENTER, roomCenter);
                 float topSpeed = me->GetSpeedRate(MOVE_RUN) + 0.2142855f * 4;
@@ -328,17 +347,14 @@ struct boss_glob_of_viscidus : public ScriptedAI
         if (id == ROOM_CENTER)
         {
             DoCastSelf(SPELL_REJOIN_VISCIDUS);
-            Unit::Kill(me, me);
+            me->KillSelf();
         }
     }
 
     void UpdateAI(uint32 diff) override
     {
-        _scheduler.Update(diff);
+        scheduler.Update(diff);
     }
-
-protected:
-    TaskScheduler _scheduler;
 };
 
 struct npc_toxic_slime : public ScriptedAI
@@ -404,3 +420,4 @@ void AddSC_boss_viscidus()
     RegisterSpellScript(spell_explode_trigger);
     RegisterSpellScript(spell_summon_toxin_slime);
 }
+

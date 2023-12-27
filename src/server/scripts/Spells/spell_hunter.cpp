@@ -15,23 +15,23 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Cell.h"
+#include "CellImpl.h"
+#include "CreatureScript.h"
+#include "GridNotifiers.h"
+#include "Pet.h"
+#include "SpellAuraEffects.h"
+#include "SpellAuras.h"
+#include "SpellMgr.h"
+#include "SpellScript.h"
+#include "SpellScriptLoader.h"
 /*
  * Scripts for spells with SPELLFAMILY_HUNTER, SPELLFAMILY_PET and SPELLFAMILY_GENERIC spells used by hunter players.
  * Ordered alphabetically using scriptname.
  * Scriptnames of files in this file should be prefixed with "spell_hun_".
  */
 
-#include "Cell.h"
-#include "CellImpl.h"
-#include "GridNotifiers.h"
-#include "Pet.h"
-#include "ScriptMgr.h"
-#include "SpellAuraEffects.h"
-#include "SpellAuras.h"
-#include "SpellMgr.h"
-#include "SpellScript.h"
-
-// TODO: this import is not necessary for compilation and marked as unused by the IDE
+/// @todo: this import is not necessary for compilation and marked as unused by the IDE
 //  however, for some reasons removing it would cause a damn linking issue
 //  there is probably some underlying problem with imports which should properly addressed
 //  see: https://github.com/azerothcore/azerothcore-wotlk/issues/9766
@@ -72,6 +72,7 @@ enum HunterSpells
     SPELL_HUNTER_GLYPH_OF_ARCANE_SHOT               = 61389,
     SPELL_LOCK_AND_LOAD_TRIGGER                     = 56453,
     SPELL_LOCK_AND_LOAD_MARKER                      = 67544,
+    SPELL_HUNTER_PET_LEGGINGS_OF_BEAST_MASTERY      = 38297, // Leggings of Beast Mastery
     SPELL_HUNTER_LOCK_AND_LOAD_TRIGGER              = 56453,
     SPELL_HUNTER_LOCK_AND_LOAD_MARKER               = 67544,
     SPELL_HUNTER_KILL_COMMAND_HUNTER                = 34027,
@@ -175,6 +176,10 @@ class spell_hun_generic_scaling : public AuraScript
             SpellSchoolMask schoolMask = SpellSchoolMask(aurEff->GetSpellInfo()->Effects[aurEff->GetEffIndex()].MiscValue);
             int32 modifier = schoolMask == SPELL_SCHOOL_MASK_NORMAL ? 35 : 40;
             amount = CalculatePct(std::max<int32>(0, owner->GetResistance(schoolMask)), modifier);
+            if (owner->HasAura(SPELL_HUNTER_PET_LEGGINGS_OF_BEAST_MASTERY) && schoolMask == SPELL_SCHOOL_MASK_NORMAL)
+            {
+                amount += 490;
+            }
         }
     }
 
@@ -190,6 +195,10 @@ class spell_hun_generic_scaling : public AuraScript
                 AddPct(modifier, wildHuntEff->GetAmount());
 
             amount = CalculatePct(std::max<int32>(0, owner->GetStat(Stats(aurEff->GetSpellInfo()->Effects[aurEff->GetEffIndex()].MiscValue))), modifier);
+            if (owner->HasAura(SPELL_HUNTER_PET_LEGGINGS_OF_BEAST_MASTERY))
+            {
+                amount += 52;
+            }
         }
     }
 
@@ -211,6 +220,10 @@ class spell_hun_generic_scaling : public AuraScript
                 ownerAP += CalculatePct(owner->GetStat(STAT_STAMINA), HvWEff->GetAmount());
 
             amount = CalculatePct(std::max<int32>(0, ownerAP), modifier);
+            if (owner->HasAura(SPELL_HUNTER_PET_LEGGINGS_OF_BEAST_MASTERY))
+            {
+                amount += 70;
+            }
         }
     }
 
@@ -997,7 +1010,7 @@ class spell_hun_tame_beast : public SpellScript
 
         if (Creature* target = GetExplTargetUnit()->ToCreature())
         {
-            if (target->getLevel() > player->getLevel())
+            if (target->GetLevel() > player->GetLevel())
             {
                 player->SendTameFailure(PET_TAME_TOO_HIGHLEVEL);
                 return SPELL_FAILED_DONT_REPORT;
@@ -1392,6 +1405,31 @@ class spell_hun_bestial_wrath : public SpellScript
     }
 };
 
+// -24604 - Furious Howl
+// 53434 - Call of the Wild
+class spell_hun_target_self_and_pet : public SpellScript
+{
+    PrepareSpellScript(spell_hun_target_self_and_pet);
+
+    bool Load() override
+    {
+        return GetCaster()->IsPet();
+    }
+
+    void FilterTargets(std::list<WorldObject*>& targets)
+    {
+        targets.remove_if([&](WorldObject const* target) -> bool
+        {
+            return target != GetCaster() && target != GetCaster()->ToPet()->GetOwner();
+        });
+    }
+
+    void Register() override
+    {
+        OnObjectAreaTargetSelect += SpellObjectAreaTargetSelectFn(spell_hun_target_self_and_pet::FilterTargets, EFFECT_ALL, TARGET_UNIT_CASTER_AREA_PARTY);
+    }
+};
+
 // 57870 - Glyph of Mend Pet
 class spell_hun_glyph_of_mend_pet : public AuraScript
 {
@@ -1590,9 +1628,11 @@ void AddSC_hunter_spell_scripts()
     RegisterSpellScript(spell_hun_lock_and_load);
     RegisterSpellScript(spell_hun_intimidation);
     RegisterSpellScript(spell_hun_bestial_wrath);
+    RegisterSpellScript(spell_hun_target_self_and_pet);
     RegisterSpellScript(spell_hun_glyph_of_mend_pet);
     RegisterSpellScript(spell_hun_hunting_party);
     RegisterSpellScript(spell_hun_kill_command_pet);
     RegisterSpellScript(spell_hun_rapid_recuperation_trigger);
     RegisterSpellScript(spell_hun_thrill_of_the_hunt);
 }
+

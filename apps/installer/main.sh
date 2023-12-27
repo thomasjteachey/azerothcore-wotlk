@@ -64,10 +64,15 @@ function _switch() {
             inst_simple_restarter authserver
             ;;
         ""|"dr"|"docker"|"13")
-            DOCKER=1 denoRunFile "$AC_PATH_APPS/docker/docker-cmd.ts" "${@:2}"
+            DOCKER=1 bash "$AC_PATH_ROOT/apps/docker/docker-cmd.sh" "${@:2}"
             exit
             ;;
-        ""|"quit"|"14")
+        ""|"v"|"version"|"14")
+            # denoRunFile "$AC_PATH_APPS/installer/main.ts" "version"
+            printf "AzerothCore Rev. %s\n" "$ACORE_VERSION"
+            exit
+            ;;
+        ""|"quit"|"15")
             echo "Goodbye!"
             exit
             ;;

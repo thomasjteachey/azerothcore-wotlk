@@ -35,6 +35,7 @@
 #include "Log.h"
 #include "MapMgr.h"
 #include "Metric.h"
+#include "MotdMgr.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
@@ -45,7 +46,6 @@
 #include "Realm.h"
 #include "ReputationMgr.h"
 #include "ScriptMgr.h"
-#include "ServerMotd.h"
 #include "SharedDefines.h"
 #include "SocialMgr.h"
 #include "SpellAuraEffects.h"
@@ -356,12 +356,6 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recvData)
         return;
     }
 
-    if (AccountMgr::IsPlayerAccount(GetSecurity()) && sObjectMgr->IsReservedName(createInfo->Name))
-    {
-        SendCharCreate(CHAR_NAME_RESERVED);
-        return;
-    }
-
     // speedup check for heroic class disabled case
     uint32 heroic_free_slots = sWorld->getIntConfig(CONFIG_HEROIC_CHARACTERS_PER_REALM);
     if (heroic_free_slots == 0 && AccountMgr::IsPlayerAccount(GetSecurity()) && createInfo->Class == CLASS_DEATH_KNIGHT)
@@ -543,7 +537,11 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recvData)
 
             std::shared_ptr<Player> newChar(new Player(this), [](Player* ptr)
             {
-                ptr->CleanupsBeforeDelete();
+                // Only when player is created correctly do clean
+                if (ptr->HasAtLoginFlag(AT_LOGIN_FIRST))
+                {
+                    ptr->CleanupsBeforeDelete();
+                }
                 delete ptr;
             });
 
@@ -581,7 +579,7 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recvData)
                 {
                     LOG_INFO("entities.player.character", "Account: {} (IP: {}) Create Character: {} {}", GetAccountId(), GetRemoteAddress(), newChar->GetName(), newChar->GetGUID().ToString());
                     sScriptMgr->OnPlayerCreate(newChar.get());
-                    sCharacterCache->AddCharacterCacheEntry(newChar->GetGUID(), GetAccountId(), newChar->GetName(), newChar->getGender(), newChar->getRace(), newChar->getClass(), newChar->getLevel());
+                    sCharacterCache->AddCharacterCacheEntry(newChar->GetGUID(), GetAccountId(), newChar->GetName(), newChar->getGender(), newChar->getRace(), newChar->getClass(), newChar->GetLevel());
                     SendCharCreate(CHAR_CREATE_SUCCESS);
                 }
                 else
@@ -658,7 +656,8 @@ void WorldSession::HandleCharDeleteOpcode(WorldPacket& recvData)
     sCalendarMgr->RemoveAllPlayerEventsAndInvites(guid);
     Player::DeleteFromDB(guid.GetCounter(), GetAccountId(), true, false);
 
-    sCharacterCache->DeleteCharacterCacheEntry(guid, name);
+    sWorld->UpdateRealmCharCount(GetAccountId());
+
     SendCharDelete(CHAR_DELETE_SUCCESS);
 }
 
@@ -828,7 +827,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
 
     // Send MOTD
     {
-        SendPacket(Motd::GetMotdPacket());
+        SendPacket(sMotdMgr->GetMotdPacket());
 
         // send server info
         if (sWorld->getIntConfig(CONFIG_ENABLE_SINFO_LOGIN) == 1)
@@ -893,7 +892,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
         if (at)
             pCurrChar->TeleportTo(at->target_mapId, at->target_X, at->target_Y, at->target_Z, pCurrChar->GetOrientation());
         else
-            pCurrChar->TeleportTo(pCurrChar->m_homebindMapId, pCurrChar->m_homebindX, pCurrChar->m_homebindY, pCurrChar->m_homebindZ, pCurrChar->GetOrientation());
+            pCurrChar->TeleportTo(pCurrChar->m_homebindMapId, pCurrChar->m_homebindX, pCurrChar->m_homebindY, pCurrChar->m_homebindZ, pCurrChar->m_homebindO);
     }
 
     pCurrChar->SendInitialPacketsAfterAddToMap();
@@ -942,7 +941,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
     pCurrChar->LoadCorpse(holder.GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_CORPSE_LOCATION));
 
     // setting Ghost+speed if dead
-    if (pCurrChar->m_deathState != ALIVE)
+    if (pCurrChar->m_deathState != DeathState::Alive)
     {
         // not blizz like, we must correctly save and load player instead...
         if (pCurrChar->getRace() == RACE_NIGHTELF)
@@ -1046,7 +1045,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
 
     std::string IP_str = GetRemoteAddress();
     LOG_INFO("entities.player", "Account: {} (IP: {}) Login Character:[{}] ({}) Level: {}",
-                  GetAccountId(), IP_str, pCurrChar->GetName(), pCurrChar->GetGUID().ToString(), pCurrChar->getLevel());
+                  GetAccountId(), IP_str, pCurrChar->GetName(), pCurrChar->GetGUID().ToString(), pCurrChar->GetLevel());
 
     if (!pCurrChar->IsStandState() && !pCurrChar->HasUnitState(UNIT_STATE_STUNNED))
         pCurrChar->SetStandState(UNIT_STAND_STATE_STAND);
@@ -1144,7 +1143,7 @@ void WorldSession::HandlePlayerLoginToCharInWorld(Player* pCurrChar)
 
     // Send MOTD
     {
-        SendPacket(Motd::GetMotdPacket());
+        SendPacket(sMotdMgr->GetMotdPacket());
 
         // send server info
         if (sWorld->getIntConfig(CONFIG_ENABLE_SINFO_LOGIN) == 1)
@@ -1249,8 +1248,6 @@ void WorldSession::HandlePlayerLoginToCharOutOfWorld(Player* /*pCurrChar*/)
 
 void WorldSession::HandleSetFactionAtWar(WorldPacket& recvData)
 {
-    LOG_DEBUG("network.opcode", "WORLD: Received CMSG_SET_FACTION_ATWAR");
-
     uint32 repListID;
     uint8  flag;
 
@@ -1297,7 +1294,6 @@ void WorldSession::HandleTutorialReset(WorldPacket& /*recvData*/)
 
 void WorldSession::HandleSetWatchedFactionOpcode(WorldPacket& recvData)
 {
-    LOG_DEBUG("network.opcode", "WORLD: Received CMSG_SET_WATCHED_FACTION");
     uint32 fact;
     recvData >> fact;
     GetPlayer()->SetUInt32Value(PLAYER_FIELD_WATCHED_FACTION_INDEX, fact);
@@ -1305,7 +1301,6 @@ void WorldSession::HandleSetWatchedFactionOpcode(WorldPacket& recvData)
 
 void WorldSession::HandleSetFactionInactiveOpcode(WorldPacket& recvData)
 {
-    LOG_DEBUG("network.opcode", "WORLD: Received CMSG_SET_FACTION_INACTIVE");
     uint32 replistid;
     uint8 inactive;
     recvData >> replistid >> inactive;
@@ -1347,13 +1342,6 @@ void WorldSession::HandleCharRenameOpcode(WorldPacket& recvData)
     if (res != CHAR_NAME_SUCCESS)
     {
         SendCharRename(ResponseCodes(res), renameInfo.get());
-        return;
-    }
-
-    // check name limitations
-    if (AccountMgr::IsPlayerAccount(GetSecurity()) && sObjectMgr->IsReservedName(renameInfo->Name))
-    {
-        SendCharRename(CHAR_NAME_RESERVED, renameInfo.get());
         return;
     }
 
@@ -1694,13 +1682,6 @@ void WorldSession::HandleCharCustomizeCallback(std::shared_ptr<CharacterCustomiz
     if (res != CHAR_NAME_SUCCESS)
     {
         SendCharCustomize(res, customizeInfo.get());
-        return;
-    }
-
-    // check name limitations
-    if (AccountMgr::IsPlayerAccount(GetSecurity()) && sObjectMgr->IsReservedName(customizeInfo->Name))
-    {
-        SendCharCustomize(CHAR_NAME_RESERVED, customizeInfo.get());
         return;
     }
 
@@ -2082,13 +2063,6 @@ void WorldSession::HandleCharFactionOrRaceChangeCallback(std::shared_ptr<Charact
         return;
     }
 
-    // check name limitations
-    if (AccountMgr::IsPlayerAccount(GetSecurity()) && sObjectMgr->IsReservedName(factionChangeInfo->Name))
-    {
-        SendCharFactionChange(CHAR_NAME_RESERVED, factionChangeInfo.get());
-        return;
-    }
-
     // character with this name already exist
     if (ObjectGuid newguid = sCharacterCache->GetCharacterGuidByName(factionChangeInfo->Name))
     {
@@ -2275,7 +2249,7 @@ void WorldSession::HandleCharFactionOrRaceChangeCallback(std::shared_ptr<Charact
 
                     // Get level from LFGDungeonEntry because the one from AreaTableEntry is not valid
                     // If area level is too big, do not add new taxi
-                    if (lfgDungeon->minlevel > level)
+                    if (lfgDungeon->MinLevel > level)
                     {
                         FillTaxiMask(field, 0);
                         continue;
@@ -2344,6 +2318,7 @@ void WorldSession::HandleCharFactionOrRaceChangeCallback(std::shared_ptr<Charact
             stmt->SetData(3, loc.GetPositionX());
             stmt->SetData(4, loc.GetPositionY());
             stmt->SetData(5, loc.GetPositionZ());
+            stmt->SetData(6, loc.GetOrientation());
             trans->Append(stmt);
 
             Player::SavePositionInDB(loc, zoneId, factionChangeInfo->Guid, trans);

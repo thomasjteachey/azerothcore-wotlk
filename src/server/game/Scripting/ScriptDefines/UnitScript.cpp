@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "UnitScript.h"
 #include "ScriptMgr.h"
 #include "ScriptMgrMacros.h"
 
@@ -53,11 +54,11 @@ void ScriptMgr::OnDamage(Unit* attacker, Unit* victim, uint32& damage)
     });
 }
 
-void ScriptMgr::ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& damage)
+void ScriptMgr::ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& damage, SpellInfo const* spellInfo)
 {
     ExecuteScript<UnitScript>([&](UnitScript* script)
     {
-        script->ModifyPeriodicDamageAurasTick(target, attacker, damage);
+        script->ModifyPeriodicDamageAurasTick(target, attacker, damage, spellInfo);
     });
 }
 
@@ -69,19 +70,19 @@ void ScriptMgr::ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage)
     });
 }
 
-void ScriptMgr::ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage)
+void ScriptMgr::ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage, SpellInfo const* spellInfo)
 {
     ExecuteScript<UnitScript>([&](UnitScript* script)
     {
-        script->ModifySpellDamageTaken(target, attacker, damage);
+        script->ModifySpellDamageTaken(target, attacker, damage, spellInfo);
     });
 }
 
-void ScriptMgr::ModifyHealRecieved(Unit* target, Unit* attacker, uint32& damage)
+void ScriptMgr::ModifyHealReceived(Unit* target, Unit* healer, uint32& heal, SpellInfo const* spellInfo)
 {
     ExecuteScript<UnitScript>([&](UnitScript* script)
     {
-        script->ModifyHealRecieved(target, attacker, damage);
+        script->ModifyHealReceived(target, healer, heal, spellInfo);
     });
 }
 
@@ -242,3 +243,20 @@ void ScriptMgr::OnUnitDeath(Unit* unit, Unit* killer)
         script->OnUnitDeath(unit, killer);
     });
 }
+
+void ScriptMgr::OnAuraApply(Unit* unit, Aura* aura)
+{
+    ExecuteScript<UnitScript>([&](UnitScript* script)
+    {
+        script->OnAuraApply(unit, aura);
+    });
+}
+
+UnitScript::UnitScript(const char* name, bool addToScripts) :
+    ScriptObject(name)
+{
+    if (addToScripts)
+        ScriptRegistry<UnitScript>::AddScript(this);
+}
+
+template class AC_GAME_API ScriptRegistry<UnitScript>;
