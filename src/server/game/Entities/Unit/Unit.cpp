@@ -978,7 +978,7 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
     }
 
     // Rage from Damage made (only from direct weapon damage)
-    if (attacker && cleanDamage && damagetype == DIRECT_DAMAGE && attacker != victim && attacker->getPowerType() == POWER_RAGE)
+    if (attacker && cleanDamage && damagetype == DIRECT_DAMAGE && attacker != victim && attacker->HasActivePowerType(POWER_RAGE))
     {
         uint32 weaponSpeedHitFactor;
 
@@ -1006,10 +1006,10 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
         // Rage from absorbed damage
         if (cleanDamage && cleanDamage->absorbed_damage)
         {
-            if (victim->getPowerType() == POWER_RAGE)
+            if (victim->HasActivePowerType(POWER_RAGE))
                 victim->RewardRage(cleanDamage->absorbed_damage, 0, false);
 
-            if (attacker && attacker->getPowerType() == POWER_RAGE )
+            if (attacker && attacker->HasActivePowerType(POWER_RAGE))
                 attacker->RewardRage(cleanDamage->absorbed_damage, 0, true);
         }
 
@@ -1132,7 +1132,7 @@ uint32 Unit::DealDamage(Unit* attacker, Unit* victim, uint32 damage, CleanDamage
         }
 
         // Rage from damage received
-        if (attacker != victim && victim->getPowerType() == POWER_RAGE)
+        if (attacker != victim && victim->HasActivePowerType(POWER_RAGE))
         {
             uint32 rageDamage = damage + (cleanDamage ? cleanDamage->absorbed_damage : 0);
             victim->RewardRage(rageDamage, 0, false);
@@ -10379,7 +10379,7 @@ void Unit::ClearInCombat()
     else if (Player* player = ToPlayer())
     {
         player->UpdatePotionCooldown();
-        if (player->getClass() == CLASS_DEATH_KNIGHT)
+        if (player->IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_ABILITY))
             for (uint8 i = 0; i < MAX_RUNES; ++i)
                 player->SetGracePeriod(i, 0);
     }
@@ -12838,7 +12838,7 @@ void Unit::ProcSkillsAndReactives(bool isVictim, Unit* procTarget, uint32 typeMa
                 if (hitMask & PROC_HIT_DODGE)
                 {
                     // Update AURA_STATE on dodge
-                    if (getClass() != CLASS_ROGUE) // skip Rogue Riposte
+                    if (!IsClass(CLASS_ROGUE, CLASS_CONTEXT_ABILITY_REACTIVE)) // skip Rogue Riposte
                     {
                         ModifyAuraState(AURA_STATE_DEFENSE, true);
                         StartReactiveTimer(REACTIVE_DEFENSE);
@@ -12848,7 +12848,7 @@ void Unit::ProcSkillsAndReactives(bool isVictim, Unit* procTarget, uint32 typeMa
                 if (hitMask & PROC_HIT_PARRY)
                 {
                     // For Hunters only Counterattack (skip Mongoose bite)
-                    if (getClass() == CLASS_HUNTER)
+                    if (IsClass(CLASS_HUNTER, CLASS_CONTEXT_ABILITY_REACTIVE))
                     {
                         ModifyAuraState(AURA_STATE_HUNTER_PARRY, true);
                         StartReactiveTimer(REACTIVE_HUNTER_PARRY);
@@ -13355,9 +13355,9 @@ void Unit::ClearAllReactives()
 
     if (HasAuraState(AURA_STATE_DEFENSE))
         ModifyAuraState(AURA_STATE_DEFENSE, false);
-    if (getClass() == CLASS_HUNTER && HasAuraState(AURA_STATE_HUNTER_PARRY))
+    if (IsClass(CLASS_HUNTER, CLASS_CONTEXT_ABILITY_REACTIVE) && HasAuraState(AURA_STATE_HUNTER_PARRY))
         ModifyAuraState(AURA_STATE_HUNTER_PARRY, false);
-    if (getClass() == CLASS_WARRIOR && GetTypeId() == TYPEID_PLAYER)
+    if (IsClass(CLASS_WARRIOR, CLASS_CONTEXT_ABILITY_REACTIVE) && GetTypeId() == TYPEID_PLAYER)
         ClearComboPoints();
 }
 
@@ -13381,11 +13381,11 @@ void Unit::UpdateReactives(uint32 p_time)
                         ModifyAuraState(AURA_STATE_DEFENSE, false);
                     break;
                 case REACTIVE_HUNTER_PARRY:
-                    if (getClass() == CLASS_HUNTER && HasAuraState(AURA_STATE_HUNTER_PARRY))
+                    if (IsClass(CLASS_HUNTER, CLASS_CONTEXT_ABILITY_REACTIVE) && HasAuraState(AURA_STATE_HUNTER_PARRY))
                         ModifyAuraState(AURA_STATE_HUNTER_PARRY, false);
                     break;
                 case REACTIVE_OVERPOWER:
-                    if (getClass() == CLASS_WARRIOR)
+                    if (IsClass(CLASS_WARRIOR, CLASS_CONTEXT_ABILITY_REACTIVE))
                     {
                         ClearComboPoints();
                     }
@@ -13974,7 +13974,7 @@ void Unit::Kill(Unit* killer, Unit* victim, bool durabilityLoss, WeaponAttackTyp
     // Spirit of Redemption
     // if talent known but not triggered (check priest class for speedup check)
     bool spiritOfRedemption = false;
-    if (victim->GetTypeId() == TYPEID_PLAYER && victim->getClass() == CLASS_PRIEST && !victim->ToPlayer()->HasPlayerFlag(PLAYER_FLAGS_IS_OUT_OF_BOUNDS))
+    if (victim->GetTypeId() == TYPEID_PLAYER && victim->IsClass(CLASS_PRIEST, CLASS_CONTEXT_ABILITY) && !victim->ToPlayer()->HasPlayerFlag(PLAYER_FLAGS_IS_OUT_OF_BOUNDS))
     {
         if (AuraEffect* aurEff = victim->GetAuraEffectDummy(20711))
         {
@@ -14582,7 +14582,7 @@ bool Unit::SetCharmedBy(Unit* charmer, CharmType type, AuraApplication const* au
         GetMotionMaster()->MoveIdle();
         StopMoving();
 
-        if (charmer->GetTypeId() == TYPEID_PLAYER && charmer->getClass() == CLASS_WARLOCK && ToCreature()->GetCreatureTemplate()->type == CREATURE_TYPE_DEMON)
+        if (charmer->GetTypeId() == TYPEID_PLAYER && charmer->IsClass(CLASS_WARLOCK, CLASS_CONTEXT_PET_CHARM) && ToCreature()->GetCreatureTemplate()->type == CREATURE_TYPE_DEMON)
         {
             // Disable CreatureAI/SmartAI and switch to CharmAI when charmed by warlock
             Creature* charmed = ToCreature();
@@ -14648,7 +14648,7 @@ bool Unit::SetCharmedBy(Unit* charmer, CharmType type, AuraApplication const* au
                 playerCharmer->PossessSpellInitialize();
                 break;
             case CHARM_TYPE_CHARM:
-                if (GetTypeId() == TYPEID_UNIT && charmer->getClass() == CLASS_WARLOCK)
+                if (GetTypeId() == TYPEID_UNIT && charmer->IsClass(CLASS_WARLOCK, CLASS_CONTEXT_PET_CHARM))
                 {
                     CreatureTemplate const* cinfo = ToCreature()->GetCreatureTemplate();
                     if (cinfo && cinfo->type == CREATURE_TYPE_DEMON)
@@ -14770,7 +14770,7 @@ void Unit::RemoveCharmedBy(Unit* charmer)
                 ClearUnitState(UNIT_STATE_NO_ENVIRONMENT_UPD);
                 break;
             case CHARM_TYPE_CHARM:
-                if (GetTypeId() == TYPEID_UNIT && charmer->getClass() == CLASS_WARLOCK)
+                if (GetTypeId() == TYPEID_UNIT && charmer->IsClass(CLASS_WARLOCK, CLASS_CONTEXT_PET_CHARM))
                 {
                     CreatureTemplate const* cinfo = ToCreature()->GetCreatureTemplate();
                     if (cinfo && cinfo->type == CREATURE_TYPE_DEMON)
