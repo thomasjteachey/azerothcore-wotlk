@@ -192,12 +192,15 @@ void Arena::RemovePlayerAtLeave(Player* player)
 
 void Arena::CheckWinConditions()
 {
-    /*
+    if (GetReplayID() > 0)
+    {
+        return;
+    }
     if (!GetAlivePlayersCountByTeam(TEAM_ALLIANCE) && GetPlayersCountByTeam(TEAM_HORDE))
         EndBattleground(TEAM_HORDE);
     else if (GetPlayersCountByTeam(TEAM_ALLIANCE) && !GetAlivePlayersCountByTeam(TEAM_HORDE))
         EndBattleground(TEAM_ALLIANCE);
-        */
+        
 }
 
 void Arena::EndBattleground(TeamId winnerTeamId)
