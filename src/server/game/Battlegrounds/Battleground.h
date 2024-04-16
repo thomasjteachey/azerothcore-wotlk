@@ -68,10 +68,10 @@ enum BattlegroundBroadcastTexts
 {
     BG_TEXT_ALLIANCE_WINS           = 10633,
     BG_TEXT_HORDE_WINS              = 10634,
-
     BG_TEXT_START_TWO_MINUTES       = 18193,
     BG_TEXT_START_ONE_MINUTE        = 18194,
     BG_TEXT_START_HALF_MINUTE       = 18195,
+    BG_TEXT_START_FIFTEEN_SEC       = 77867,
     BG_TEXT_BATTLE_HAS_BEGUN        = 18196,
 };
 
@@ -139,7 +139,8 @@ enum BattlegroundSpells
     SPELL_RECENTLY_DROPPED_FLAG     = 42792,                // Recently Dropped Flag
     SPELL_AURA_PLAYER_INACTIVE      = 43681,                // Inactive
     SPELL_HONORABLE_DEFENDER_25Y    = 68652,                // +50% honor when standing at a capture point that you control, 25yards radius (added in 3.2)
-    SPELL_HONORABLE_DEFENDER_60Y    = 66157                 // +50% honor when standing at a capture point that you control, 60yards radius (added in 3.2), probably for 40+ player battlegrounds
+    SPELL_HONORABLE_DEFENDER_60Y    = 66157,                // +50% honor when standing at a capture point that you control, 60yards radius (added in 3.2), probably for 40+ player battlegrounds
+    SPELL_INSTANT_CAST              = 45813,                // instant cast spells in arena
 };
 
 enum BattlegroundReputations
@@ -156,9 +157,9 @@ enum BattlegroundTimeIntervals
 {
     CHECK_PLAYER_POSITION_INVERVAL  = 9000,                 // ms
     //REMIND_INTERVAL               = 10000,                // ms
-    INVITATION_REMIND_TIME          = 20000,                // ms
-    INVITE_ACCEPT_WAIT_TIME         = 60000,                // ms
-    TIME_TO_AUTOREMOVE              = 120000,               // ms
+    INVITATION_REMIND_TIME          = 10000,                // ms
+    INVITE_ACCEPT_WAIT_TIME         = 30000,                // ms
+    TIME_TO_AUTOREMOVE              = 60000,                // ms
     MAX_OFFLINE_TIME                = 300,                  // secs
     RESPAWN_ONE_DAY                 = 86400,                // secs
     RESPAWN_IMMEDIATELY             = 0,                    // secs
@@ -174,7 +175,9 @@ enum BattlegroundStartTimeIntervals
     BG_START_DELAY_2M               = 120000,               // ms (2 minutes)
     BG_START_DELAY_1M               = 60000,                // ms (1 minute)
     BG_START_DELAY_30S              = 30000,                // ms (30 seconds)
+    BG_START_DELAY_20S              = 20000,                // ms (20 seconds)
     BG_START_DELAY_15S              = 15000,                // ms (15 seconds) Used only in arena
+    BG_START_DELAY_10S              = 10000,                // ms (10 seconds)
     BG_START_DELAY_NONE             = 0,                    // ms
 };
 

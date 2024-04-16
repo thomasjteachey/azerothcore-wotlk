@@ -54,7 +54,8 @@ enum PriestSpells
     SPELL_GENERIC_BATTLEGROUND_DAMPENING            = 74411,
     SPELL_PRIEST_TWIN_DISCIPLINE_R1                 = 47586,
     SPELL_PRIEST_SPIRITUAL_HEALING_R1               = 14898,
-    SPELL_PRIEST_DIVINE_PROVIDENCE_R1               = 47562
+    SPELL_PRIEST_DIVINE_PROVIDENCE_R1               = 47562,
+    SPELL_PRIEST_SHADOW_GUARD_DAMAGE_R1             = 28377
 };
 
 enum PriestSpellIcons
@@ -949,6 +950,39 @@ class spell_pri_t4_4p_bonus : public AuraScript
     }
 };
 
+
+// -18137 - Shadow Guard
+class spell_pri_shadow_guard : public AuraScript
+{
+    PrepareAuraScript(spell_pri_shadow_guard);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return ValidateSpellInfo({ SPELL_PRIEST_SHADOW_GUARD_DAMAGE_R1 });
+    }
+
+    bool CheckProc(ProcEventInfo& eventInfo)
+    {
+        if (eventInfo.GetActionTarget())
+            return true;
+        return false;
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
+    {
+        PreventDefaultAction();
+        uint32 triggerSpell = sSpellMgr->GetSpellWithRank(SPELL_PRIEST_SHADOW_GUARD_DAMAGE_R1, aurEff->GetSpellInfo()->GetRank());
+
+        eventInfo.GetActionTarget()->CastSpell(eventInfo.GetActor(), triggerSpell, aurEff);
+    }
+
+    void Register() override
+    {
+        DoCheckProc += AuraCheckProcFn(spell_pri_shadow_guard::CheckProc);
+        OnEffectProc += AuraEffectProcFn(spell_pri_shadow_guard::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 void AddSC_priest_spell_scripts()
 {
     RegisterSpellScript(spell_pri_shadowfiend_scaling);
@@ -973,5 +1007,6 @@ void AddSC_priest_spell_scripts()
     RegisterSpellScript(spell_pri_vampiric_touch);
     RegisterSpellScript(spell_pri_mind_control);
     RegisterSpellScript(spell_pri_t4_4p_bonus);
+    RegisterSpellScript(spell_pri_shadow_guard);
 }
 

@@ -22,6 +22,8 @@
 #include "SpellScript.h"
 #include "SpellScriptLoader.h"
 #include "UnitAI.h"
+#include "Item.h"
+#include "Spell.h"
 /*
  * Scripts for spells with SPELLFAMILY_PALADIN and SPELLFAMILY_GENERIC spells used by paladin players.
  * Ordered alphabetically using scriptname.
@@ -182,6 +184,39 @@ class spell_pal_divine_intervention : public AuraScript
         OnEffectRemove += AuraEffectRemoveFn(spell_pal_divine_intervention::HandleRemove, EFFECT_0, SPELL_AURA_SCHOOL_IMMUNITY, AURA_EFFECT_HANDLE_REAL);
     }
 };
+
+// 21082 - Seal of the Crusader
+class spell_seal_crusader : public AuraScript
+{
+    PrepareAuraScript(spell_seal_crusader);
+
+    bool Validate(SpellInfo const* /*spellInfo*/) override
+    {
+        return true;
+    }
+
+    void OnApply(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        Aura* aura = aurEff->GetBase();
+        float amount = aura->GetEffect(1)->GetAmount();
+        float reduction = (-100.0f * amount) / (amount + 100.0f);
+        Unit* caster = GetCaster();
+        caster->ApplyPercentModFloatValue(UNIT_MOD_DAMAGE_MAINHAND, TOTAL_PCT, reduction);
+    }
+
+    void OnRemove(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
+    {
+        Unit* caster = GetCaster();
+        caster->UpdateDamagePhysical(BASE_ATTACK);
+    }
+
+    void Register() override
+    {
+        AfterEffectApply += AuraEffectApplyFn(spell_seal_crusader::OnApply, EFFECT_2, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+        AfterEffectRemove += AuraEffectRemoveFn(spell_seal_crusader::OnRemove, EFFECT_2, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL);
+    }
+};
+
 
 class spell_pal_seal_of_light : public AuraScript
 {
@@ -857,9 +892,14 @@ class spell_pal_judgement : public SpellScript
 public:
     spell_pal_judgement(uint32 spellId) : SpellScript(), _spellId(spellId) { }
 
+private:
     bool Validate(SpellInfo const* /*spellInfo*/) override
     {
-        return ValidateSpellInfo({ SPELL_PALADIN_JUDGEMENT_DAMAGE, _spellId });
+        return ValidateSpellInfo(
+            {
+                SPELL_PALADIN_JUDGEMENT_DAMAGE,
+                _spellId
+            });
     }
 
     void HandleScriptEffect(SpellEffIndex /*effIndex*/)
@@ -870,45 +910,22 @@ public:
         Unit::AuraEffectList const& auras = GetCaster()->GetAuraEffectsByType(SPELL_AURA_DUMMY);
         for (Unit::AuraEffectList::const_iterator i = auras.begin(); i != auras.end(); ++i)
         {
-            if ((*i)->GetSpellInfo()->GetSpellSpecific() == SPELL_SPECIFIC_SEAL && (*i)->GetEffIndex() == EFFECT_2)
-                if (sSpellMgr->GetSpellInfo((*i)->GetAmount()))
-                {
-                    spellId2 = (*i)->GetAmount();
-                    break;
-                }
-        }
-
-        GetCaster()->CastSpell(GetHitUnit(), _spellId, true);
-        GetCaster()->CastSpell(GetHitUnit(), spellId2, true);
-
-        // Tier 5 Holy - 2 Set
-        if (GetCaster()->HasAura(SPELL_IMPROVED_JUDGEMENT))
-        {
-            GetCaster()->CastSpell(GetCaster(), SPELL_IMPROVED_JUDGEMENT_ENERGIZE, true);
-        }
-
-        // Judgement of the Just
-        if (GetCaster()->GetAuraEffect(SPELL_AURA_ADD_FLAT_MODIFIER, SPELLFAMILY_PALADIN, 3015, 0))
-        {
-            if (GetCaster()->CastSpell(GetHitUnit(), SPELL_JUDGEMENTS_OF_THE_JUST, true) && (spellId2 == SPELL_JUDGEMENT_OF_VENGEANCE_EFFECT || spellId2 == SPELL_JUDGEMENT_OF_CORRUPTION_EFFECT))
+            if ((*i)->GetSpellInfo()->GetSpellSpecific() == SPELL_SPECIFIC_SEAL)
             {
-                //hidden effect only cast when spellcast of judgements of the just is succesful
-                GetCaster()->CastSpell(GetHitUnit(), SealApplication(spellId2), true); //add hidden seal apply effect for vengeance and corruption
+                if ((*i)->GetEffIndex() == EFFECT_2)
+                {
+                    if (sSpellMgr->GetSpellInfo((*i)->GetAmount()))
+                    {
+                        spellId2 = (*i)->GetAmount();
+                        //found seal remove and break
+                        GetCaster()->RemoveAurasDueToSpell((*i)->GetSpellInfo()->Id);
+                        break;
+                    }
+                }
             }
         }
-    }
-
-    uint32 SealApplication(uint32 correspondingSpellId)
-    {
-        switch (correspondingSpellId)
-        {
-            case SPELL_JUDGEMENT_OF_VENGEANCE_EFFECT:
-                return SPELL_HOLY_VENGEANCE;
-            case SPELL_JUDGEMENT_OF_CORRUPTION_EFFECT:
-                return SPELL_BLOOD_CORRUPTION;
-            default:
-                return 0;
-        }
+        //GetCaster()->CastSpell(GetHitUnit(), _spellId, true);
+        GetCaster()->CastSpell(GetHitUnit(), spellId2, true);
     }
 
     void Register() override
@@ -916,7 +933,6 @@ public:
         OnEffectHitTarget += SpellEffectFn(spell_pal_judgement::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
     }
 
-private:
     uint32 const _spellId;
 };
 
@@ -1084,18 +1100,58 @@ class spell_pal_seal_of_righteousness : public AuraScript
     {
         PreventDefaultAction();
 
-        float ap = GetTarget()->GetTotalAttackPowerValue(BASE_ATTACK);
-        int32 holy = GetTarget()->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_HOLY);
-        holy += eventInfo.GetProcTarget()->SpellBaseDamageBonusTaken(SPELL_SCHOOL_MASK_HOLY);
+        Unit* victim = eventInfo.GetProcTarget();
+        Unit* caster = eventInfo.GetActor();
 
-        // Xinef: Libram of Divine Purpose
-        if (AuraEffect* aurEffPaladin = GetTarget()->GetDummyAuraEffect(SPELLFAMILY_PALADIN, 2025, EFFECT_0))
+        uint32 sealId = aurEff->GetSpellInfo()->GetRank();
+        uint32 procId = SPELL_PALADIN_SEAL_OF_RIGHTEOUSNESS;
+        /*
+        switch (sealId)
         {
-            holy += aurEffPaladin->GetAmount();
+            case 20154: procId = 25742; break;     // Rank 1
+            case 21084: procId = 25741; break;     // Rank 1.5
+            case 20287: procId = 25740; break;     // Rank 2
+            case 20288: procId = 25739; break;     // Rank 3
+            case 20289: procId = 25738; break;     // Rank 4
+            case 20290: procId = 25737; break;     // Rank 5
+            case 20291: procId = 25736; break;     // Rank 6
+            case 20292: procId = 25735; break;     // Rank 7
+            case 20293: procId = 25713; break;     // Rank 8
+            default: break;
+        }
+        */
+
+        float speed = GetTarget()->GetAttackTime(BASE_ATTACK);
+        speed /= 1000.0f;
+
+        float damageBasePoints;
+        float coeff;
+        float triggerAmount = aurEff->GetAmount();
+
+        if (((Player*)caster)->IsTwoHandUsed())
+        {
+            // two hand weapon
+            damageBasePoints = 1.20f * triggerAmount * 1.2f * 1.03f * speed / 100.0f + 1;
+            coeff = .108f * speed;
+        }
+        else
+        {
+            // one hand weapon/no weapon
+            damageBasePoints = 0.85f * ceil(triggerAmount * 1.2f * 1.03f * speed / 100.0f) - 1;
+            coeff = .092f * speed;
         }
 
-        int32 bp = std::max<int32>(0, int32((ap * 0.022f + 0.044f * holy) * GetTarget()->GetAttackTime(BASE_ATTACK) / 1000));
-        GetTarget()->CastCustomSpell(SPELL_PALADIN_SEAL_OF_RIGHTEOUSNESS, SPELLVALUE_BASE_POINT0, bp, eventInfo.GetProcTarget(), true, nullptr, aurEff);
+        int32 damagePoint = int32(damageBasePoints + 0.03f * (caster->GetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE) + caster->GetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE)) / 2.0f) + 1;
+
+        // apply damage bonuses manually
+        if (damagePoint >= 0)
+        {
+            // currently uses same spell damage fetch as flametongue - need to verify whether SP is supposed to be applied pre-triggered spell bonuses or post
+            int32 bonusDamage = caster->SpellBaseDamageBonusDone(SPELL_SCHOOL_MASK_HOLY);
+            damagePoint += bonusDamage * coeff;
+        }
+
+        GetTarget()->CastCustomSpell(victim, procId, &damagePoint, 0, 0, true);
     }
 
     void Register() override
@@ -1132,5 +1188,6 @@ void AddSC_paladin_spell_scripts()
     RegisterSpellScript(spell_pal_lay_on_hands);
     RegisterSpellScript(spell_pal_righteous_defense);
     RegisterSpellScript(spell_pal_seal_of_righteousness);
+    RegisterSpellScript(spell_seal_crusader);
 }
 

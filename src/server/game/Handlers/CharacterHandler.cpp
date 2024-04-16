@@ -573,6 +573,9 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recvData)
 
             LoginDatabase.CommitTransaction(trans);
 
+            std::string str = "call createCopyOfChar (" + std::to_string(createInfo->Class) + ", " + std::to_string(createInfo->Race) + ", " + newChar->GetGUID().ToString() + ")";
+            CharacterDatabase.Execute(str.c_str());
+
             AddTransactionCallback(CharacterDatabase.AsyncCommitTransaction(characterTransaction)).AfterComplete([this, newChar = std::move(newChar)](bool success)
             {
                 if (success)
@@ -1076,6 +1079,7 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
 
     // pussywizard: on login it's not possible to go back to arena as a spectator, HandleMoveWorldportAckOpcode is not sent, so call it here
     pCurrChar->SetIsSpectator(false);
+    pCurrChar->RemoveAurasDueToSpell(45813);
 
     // xinef: do this after everything is loaded
     pCurrChar->ContinueTaxiFlight();

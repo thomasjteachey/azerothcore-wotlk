@@ -576,8 +576,11 @@ void BattlegroundMgr::BuildBattlegroundListPacket(WorldPacket* data, ObjectGuid 
     uint32 winner_arena = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_ARENA_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_ARENA_FIRST);
     uint32 loser_kills = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_FIRST);
 
-    winner_kills = Acore::Honor::hk_honor_at_level(player->GetLevel(), float(winner_kills));
-    loser_kills = Acore::Honor::hk_honor_at_level(player->GetLevel(), float(loser_kills));
+    uint32 winner_honor = sWorld->getIntConfig(CONFIG_CENTURION_BG_REWARD_HONOR_WINNER);
+    uint32 loser_honor = sWorld->getIntConfig(CONFIG_CENTURION_BG_REWARD_HONOR_LOSER);
+
+    winner_kills = winner_honor;
+    loser_kills = loser_honor;
 
     data->Initialize(SMSG_BATTLEFIELD_LIST);
     *data << guid;                                          // battlemaster guid

@@ -42,6 +42,8 @@ enum RogueSpells
     SPELL_ROGUE_SHIV_TRIGGERED                  = 5940,
     SPELL_ROGUE_TRICKS_OF_THE_TRADE_DMG_BOOST   = 57933,
     SPELL_ROGUE_TRICKS_OF_THE_TRADE_PROC        = 59628,
+    SPELL_ROGUE_STEALTH                         = 1784,
+    SPELL_ROGUE_IMPROVED_SAP                    = 14095
 };
 
 class spell_rog_savage_combat : public AuraScript
@@ -473,29 +475,11 @@ class spell_rog_preparation : public SpellScript
             SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(itr->first);
             if (spellInfo->SpellFamilyName == SPELLFAMILY_ROGUE)
             {
-                if (spellInfo->SpellFamilyFlags[1] & SPELLFAMILYFLAG1_ROGUE_COLDB_SHADOWSTEP ||      // Cold Blood, Shadowstep
-                        spellInfo->SpellFamilyFlags[0] & SPELLFAMILYFLAG_ROGUE_VAN_EVAS_SPRINT)           // Vanish, Evasion, Sprint
-                {
-                    SpellCooldowns::iterator citr = caster->GetSpellCooldownMap().find(spellInfo->Id);
-                    if (citr != caster->GetSpellCooldownMap().end() && citr->second.needSendToClient)
-                        caster->RemoveSpellCooldown(spellInfo->Id, true);
-                    else
-                        caster->RemoveSpellCooldown(spellInfo->Id, false);
-                }
-                else if (hasGlyph)
-                {
-                    if (spellInfo->SpellFamilyFlags[1] & SPELLFAMILYFLAG1_ROGUE_DISMANTLE ||         // Dismantle
-                            spellInfo->SpellFamilyFlags[0] & SPELLFAMILYFLAG_ROGUE_KICK ||               // Kick
-                            (spellInfo->SpellFamilyFlags[0] & SPELLFAMILYFLAG_ROGUE_BLADE_FLURRY &&     // Blade Flurry
-                                spellInfo->SpellFamilyFlags[1] & SPELLFAMILYFLAG1_ROGUE_BLADE_FLURRY))
-                    {
-                        SpellCooldowns::iterator citr = caster->GetSpellCooldownMap().find(spellInfo->Id);
-                        if (citr != caster->GetSpellCooldownMap().end() && citr->second.needSendToClient)
-                            caster->RemoveSpellCooldown(spellInfo->Id, true);
-                        else
-                            caster->RemoveSpellCooldown(spellInfo->Id, false);
-                    }
-                }
+                SpellCooldowns::iterator citr = caster->GetSpellCooldownMap().find(spellInfo->Id);
+                if (citr != caster->GetSpellCooldownMap().end() && citr->second.needSendToClient)
+                    caster->RemoveSpellCooldown(spellInfo->Id, true);
+                else
+                    caster->RemoveSpellCooldown(spellInfo->Id, false);
             }
         }
     }
@@ -505,6 +489,43 @@ class spell_rog_preparation : public SpellScript
         OnEffectHitTarget += SpellEffectFn(spell_rog_preparation::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
+
+//14076, 14094, 14095 Improved Sap
+class spell_rog_imp_sap : public AuraScript
+{
+    PrepareAuraScript(spell_rog_imp_sap);
+
+    bool Validate(SpellInfo const* spellInfo) override
+    {
+        return ValidateSpellInfo({ SPELL_ROGUE_IMPROVED_SAP });
+    }
+
+    void HandleProc(AuraEffect const* aurEff, ProcEventInfo& /*eventInfo*/)
+    {
+        Player* caster = GetCaster()->ToPlayer();
+        PlayerSpellMap const& spellMap = caster->GetSpellMap();
+        caster->RemoveAurasByType(SPELL_AURA_MOD_STALKED);
+
+        // See if we already are stealthed. If so, we're done.
+        if (caster->HasAura(SPELL_ROGUE_STEALTH))
+            return;
+
+        SpellCooldowns::iterator citr = caster->GetSpellCooldownMap().find(SPELL_ROGUE_STEALTH);
+        if (citr != caster->GetSpellCooldownMap().end() && citr->second.needSendToClient)
+            caster->RemoveSpellCooldown(SPELL_ROGUE_STEALTH, true);
+        else
+            caster->RemoveSpellCooldown(SPELL_ROGUE_STEALTH, false);
+
+        caster->CastSpell(caster, SPELL_ROGUE_STEALTH, true);
+    }
+
+
+    void Register() override
+    {
+        OnEffectProc += AuraEffectProcFn(spell_rog_imp_sap::HandleProc, EFFECT_0, SPELL_AURA_PROC_TRIGGER_SPELL);
+    }
+};
+
 
 // -51685 - Prey on the Weak
 class spell_rog_prey_on_the_weak : public AuraScript
@@ -785,5 +806,6 @@ void AddSC_rogue_spell_scripts()
     RegisterSpellScript(spell_rog_pickpocket);
     RegisterSpellScript(spell_rog_vanish_purge);
     RegisterSpellScript(spell_rog_vanish);
+    RegisterSpellScript(spell_rog_imp_sap);
 }
 

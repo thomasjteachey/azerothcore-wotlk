@@ -81,6 +81,14 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellInfo const* spellproto,
                 // Screams of the Past
                 else if (spellproto->Id == 7074)
                     return DIMINISHING_NONE;
+                // Entrapment (own diminishing)
+                else if (spellproto->Id == 19185 || spellproto->Id == 19229 || spellproto->Id == 23694)
+                    return DIMINISHING_ENTRAPMENT;
+                //frostbite for some reason not showing up on mage family
+                else if (spellproto->Id == 12494)
+                    return DIMINISHING_ROOT;
+                else if (spellproto->Id == 18798)
+                    return DIMINISHING_STUN;
                 break;
             }
         // Event spells
@@ -115,7 +123,7 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellInfo const* spellproto,
                     return DIMINISHING_ROOT;
                 // Charge Stun (own diminishing)
                 else if (spellproto->SpellFamilyFlags[0] & 0x01000000)
-                    return DIMINISHING_CHARGE;
+                    return DIMINISHING_CONTROLLED_STUN;
                 break;
             }
         case SPELLFAMILY_WARLOCK:
@@ -132,7 +140,7 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellInfo const* spellproto,
             {
                 // Pounce
                 if (spellproto->SpellFamilyFlags[0] & 0x20000)
-                    return DIMINISHING_OPENING_STUN;
+                    return DIMINISHING_CONTROLLED_STUN;
                 // Cyclone
                 else if (spellproto->SpellFamilyFlags[1] & 0x20)
                     return DIMINISHING_CYCLONE;
@@ -155,13 +163,16 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellInfo const* spellproto,
                     return DIMINISHING_DISORIENT;
                 // Blind
                 else if (spellproto->SpellFamilyFlags[0] & 0x1000000)
-                    return DIMINISHING_FEAR;
+                    return DIMINISHING_CYCLONE;
                 // Cheap Shot
                 else if (spellproto->SpellFamilyFlags[0] & 0x400)
-                    return DIMINISHING_OPENING_STUN;
+                    return DIMINISHING_CONTROLLED_STUN;
                 // Crippling poison - Limit to 10 seconds in PvP (No SpellFamilyFlags)
                 else if (spellproto->SpellIconID == 163)
                     return DIMINISHING_LIMITONLY;
+                //Kidney Shot
+                else if (spellproto->SpellIconID == 499)
+                    return DIMINISHING_KIDNEY;
                 break;
             }
         case SPELLFAMILY_HUNTER:
@@ -171,7 +182,7 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellInfo const* spellproto,
                     return DIMINISHING_LIMITONLY;
                 // Scatter Shot (own diminishing)
                 else if ((spellproto->SpellFamilyFlags[0] & 0x40000) && spellproto->SpellIconID == 132)
-                    return DIMINISHING_SCATTER_SHOT;
+                    return DIMINISHING_DISORIENT;
                 // Entrapment (own diminishing)
                 else if (spellproto->SpellVisual[0] == 7484 && spellproto->SpellIconID == 20)
                     return DIMINISHING_ENTRAPMENT;
@@ -236,6 +247,8 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellInfo const* spellproto,
     if (mechanic & (1 << MECHANIC_BANISH))
         return DIMINISHING_BANISH;
     if (mechanic & (1 << MECHANIC_ROOT))
+        return triggered ? DIMINISHING_ROOT : DIMINISHING_CONTROLLED_ROOT;
+    if (mechanic & (1 << MECHANIC_FREEZE))
         return triggered ? DIMINISHING_ROOT : DIMINISHING_CONTROLLED_ROOT;
     if (mechanic & (1 << MECHANIC_HORROR))
         return DIMINISHING_HORROR;

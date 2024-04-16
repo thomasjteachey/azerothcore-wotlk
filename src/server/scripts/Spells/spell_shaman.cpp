@@ -738,8 +738,6 @@ class spell_sha_fire_nova : public SpellScript
 
     void Register() override
     {
-        OnCheckCast += SpellCheckCastFn(spell_sha_fire_nova::CheckFireTotem);
-        OnEffectHitTarget += SpellEffectFn(spell_sha_fire_nova::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
     }
 };
 
@@ -1106,6 +1104,32 @@ class spell_sha_flurry_proc : public AuraScript
     }
 };
 
+//healing wave
+class spell_sha_healing_wave : public SpellScript
+{
+    PrepareSpellScript(spell_sha_healing_wave);
+
+    void HandleHeal(SpellEffIndex /*effIndex*/)
+    {
+        Unit* caster = GetCaster();
+        if (Unit* unitTarget = GetHitUnit())
+        {
+            //get healing way aura
+            AuraApplication* aa = unitTarget->GetAuraApplication(29203);
+            if (aa)
+            {
+                float percentHeal = 1 + (aa->GetBase()->GetEffect(0)->GetAmount() * .01f);
+                SetHitHeal(GetHitHeal() * percentHeal);
+            }
+        }
+    }
+
+    void Register() override
+    {
+        OnEffectHitTarget += SpellEffectFn(spell_sha_healing_wave::HandleHeal, EFFECT_0, SPELL_EFFECT_HEAL);
+    }
+};
+
 // 64928 - Item - Shaman T8 Elemental 4P Bonus
 class spell_sha_t8_electrified : public AuraScript
 {
@@ -1177,5 +1201,6 @@ void AddSC_shaman_spell_scripts()
     RegisterSpellScript(spell_sha_thunderstorm);
     RegisterSpellScript(spell_sha_flurry_proc);
     RegisterSpellScript(spell_sha_t8_electrified);
+    RegisterSpellScript(spell_sha_healing_wave);
 }
 

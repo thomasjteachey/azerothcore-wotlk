@@ -156,6 +156,7 @@ void WorldSession::HandleSendMail(WorldPacket& recvData)
     uint32 reqmoney = cost + money;
 
     // Check for overflow
+    /*
     if (reqmoney < money)
     {
         player->SendMailResult(0, MAIL_SEND, MAIL_ERR_NOT_ENOUGH_MONEY);
@@ -167,6 +168,7 @@ void WorldSession::HandleSendMail(WorldPacket& recvData)
         player->SendMailResult(0, MAIL_SEND, MAIL_ERR_NOT_ENOUGH_MONEY);
         return;
     }
+    */
 
     Player* receive = ObjectAccessor::FindConnectedPlayer(receiverGuid);
 
@@ -285,7 +287,7 @@ void WorldSession::HandleSendMail(WorldPacket& recvData)
 
     player->SendMailResult(0, MAIL_SEND, MAIL_OK);
 
-    player->ModifyMoney(-int32(reqmoney));
+    //player->ModifyMoney(-int32(reqmoney));
     player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_GOLD_SPENT_FOR_MAIL, cost);
 
     bool needItemDelay = false;
@@ -514,11 +516,13 @@ void WorldSession::HandleMailTakeItem(WorldPacket& recvData)
     }
 
     // prevent cheating with skip client money check
+    
     if (!player->HasEnoughMoney(m->COD))
     {
         player->SendMailResult(mailId, MAIL_ITEM_TAKEN, MAIL_ERR_NOT_ENOUGH_MONEY);
         return;
     }
+    
 
     Item* it = player->GetMItem(itemLowGuid);
 

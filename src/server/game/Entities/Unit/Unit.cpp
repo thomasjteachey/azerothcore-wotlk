@@ -1891,6 +1891,26 @@ void Unit::DealMeleeDamage(CalcDamageInfo* damageInfo, bool durabilityLoss)
         Unit::DealDamage(this, victim, damageInfo->damages[i].damage, &cleanDamage, DIRECT_DAMAGE, SpellSchoolMask(damageInfo->damages[i].damageSchoolMask), nullptr, durabilityLoss);
     }
 
+
+    if (GetTypeId() == TYPEID_PLAYER)
+    {
+        Unit* attacker = damageInfo->attacker;
+
+        Aura* judgeWisdomAura = victim->GetAuraOfRankedSpell(20186);
+        Aura* judgeLightAura = victim->GetAuraOfRankedSpell(20185);
+
+        //if paladin that cast judgement hits with auto attack, it refreshes duration
+        if (judgeWisdomAura && judgeWisdomAura->GetCaster()->GetGUID() == attacker->GetGUID())
+        {
+            judgeWisdomAura->RefreshDuration();
+        }
+
+        if (judgeLightAura && judgeLightAura->GetCaster()->GetGUID() == attacker->GetGUID())
+        {
+            judgeLightAura->RefreshDuration();
+        }
+    }
+
     // If this is a creature and it attacks from behind it has a probability to daze it's victim
     if ((damageInfo->damages[0].damage + damageInfo->damages[1].damage) && ((damageInfo->hitOutCome == MELEE_HIT_CRIT || damageInfo->hitOutCome == MELEE_HIT_CRUSHING || damageInfo->hitOutCome == MELEE_HIT_NORMAL || damageInfo->hitOutCome == MELEE_HIT_GLANCING) &&
                                GetTypeId() != TYPEID_PLAYER && !ToCreature()->IsControlledByPlayer() && !victim->HasInArc(M_PI, this)
@@ -2729,6 +2749,7 @@ void Unit::HandleProcExtraAttackFor(Unit* victim, uint32 count)
     while (count)
     {
         --count;
+        CastSpell(victim, 80865);
         AttackerStateUpdate(victim, BASE_ATTACK, true);
     }
 }
@@ -3886,8 +3907,14 @@ void Unit::_UpdateAutoRepeatSpell()
         return;
     }
 
+    //hunter autoshot change
+    if ((m_currentSpells[CURRENT_GENERIC_SPELL] || m_currentSpells[CURRENT_CHANNELED_SPELL]) && getAttackTimer(RANGED_ATTACK) < 500)
+    {
+        setAttackTimer(RANGED_ATTACK, 500);
+    }
+
     // Apply delay (Hunter's autoshoot not affected)
-    if (m_AutoRepeatFirstCast && getAttackTimer(RANGED_ATTACK) < 500 && spellProto->Id != HUNTER_AUTOSHOOT)
+    if (m_AutoRepeatFirstCast && getAttackTimer(RANGED_ATTACK) < 500)
     {
         setAttackTimer(RANGED_ATTACK, 500);
     }
@@ -4491,7 +4518,8 @@ void Unit::_ApplyAura(AuraApplication* aurApp, uint8 effMask)
     // apply effects of the aura
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
     {
-        if (effMask & 1 << i && (!aurApp->GetRemoveMode()))
+        bool frostTrapStart = i == 0 && aurApp->GetBase()->m_spellInfo->Id == 13810;
+        if (frostTrapStart || (effMask & 1 << i && (!aurApp->GetRemoveMode())))
             aurApp->_HandleEffect(i, true);
     }
 
@@ -7767,9 +7795,9 @@ bool Unit::HandleDummyAuraProc(Unit* victim, uint32 damage, AuraEffect* triggere
                             if (!victim || !victim->IsAlive() || victim->HasSpellCooldown(20267))
                                 return false;
                             // 2% of base mana
-                            basepoints0 = int32(victim->CountPctFromMaxHealth(2));
-                            victim->CastCustomSpell(victim, 20267, &basepoints0, 0, 0, true, 0, triggeredByAura);
-                            victim->AddSpellCooldown(20267, 0, 4 * IN_MILLISECONDS);
+                            uint32 triggerSpell = sSpellMgr->GetSpellWithRank(20267, dummySpell->GetRank());
+                            victim->CastSpell(victim, triggerSpell);
+                            victim->AddSpellCooldown(triggerSpell, 0, 4 * IN_MILLISECONDS);
                             return true;
                         }
                     // Judgement of Wisdom
@@ -7779,9 +7807,9 @@ bool Unit::HandleDummyAuraProc(Unit* victim, uint32 damage, AuraEffect* triggere
                                 return false;
 
                             // 2% of base mana
-                            basepoints0 = int32(CalculatePct(victim->GetCreateMana(), 2));
-                            victim->CastCustomSpell(victim, 20268, &basepoints0, nullptr, nullptr, true, 0, triggeredByAura);
-                            victim->AddSpellCooldown(20268, 0, 4 * IN_MILLISECONDS);
+                            uint32 triggerSpell = sSpellMgr->GetSpellWithRank(20268, dummySpell->GetRank());
+                            victim->CastSpell(victim, triggerSpell);
+                            victim->AddSpellCooldown(triggerSpell, 0, 4 * IN_MILLISECONDS);
                             return true;
                         }
                     // Holy Power (Redemption Armor set)
@@ -9320,8 +9348,8 @@ bool Unit::HandleProcTriggerSpell(Unit* victim, uint32 damage, AuraEffect* trigg
                                     return false;
                                 }
                                 // percent stored in effect 1 (class scripts) base points
-                                int32 cost = int32(originalSpell->ManaCost + CalculatePct(GetCreateMana(), originalSpell->ManaCostPercentage));
-                                basepoints0 = CalculatePct(cost, auraSpellInfo->Effects[1].CalcValue());
+                                //int32 cost = int32(originalSpell->ManaCost + CalculatePct(GetCreateMana(), originalSpell->ManaCostPercentage));
+                                basepoints0 = originalSpell->ManaCost;
                                 trigger_spell_id = 20272;
                                 target = this;
                             }
@@ -9424,13 +9452,6 @@ bool Unit::HandleProcTriggerSpell(Unit* victim, uint32 damage, AuraEffect* trigg
 
         // Patch 1.12.0(?) extra attack abilities can no longer chain proc themselves
         if (lastExtraAttackSpell == trigger_spell_id)
-        {
-            return false;
-        }
-
-        // Patch 2.2.0 Sword Specialization (Warrior, Rogue) extra attack can no longer proc additional extra attacks
-        // 3.3.5 Sword Specialization (Warrior), Hack and Slash (Rogue)
-        if (lastExtraAttackSpell == SPELL_SWORD_SPECIALIZATION || lastExtraAttackSpell == SPELL_HACK_AND_SLASH)
         {
             return false;
         }
@@ -12103,19 +12124,28 @@ float Unit::SpellTakenCritChance(Unit const* caster, SpellInfo const* spellProto
                         int32 modChance = 0;
                         switch ((*i)->GetMiscValue())
                         {
-                            // Shatter
-                            case 911:
-                                modChance += 16;
+                            case 913: // Shatter (Rank 5)
+                                modChance += 10.f;
                                 [[fallthrough]];
-                            case 910:
-                                modChance += 17;
+                            case 912: // Shatter (Rank 4)
+                                modChance += 10.f;
                                 [[fallthrough]];
-                            case 849:
-                                modChance += 17;
+                            case 911: // Shatter (Rank 3)
+                                modChance += 10.f;
+                                [[fallthrough]];
+                            case 910: // Shatter (Rank 2)
+                                modChance += 10.f;
+                                [[fallthrough]];
+                            case 849: // Shatter (Rank 1)
+                            {
+                                modChance += 10.f;
                                 if (!HasAuraState(AURA_STATE_FROZEN, spellProto, caster))
                                     break;
                                 crit_chance += modChance;
+                                //std::string str = "shatter crit chance[" + std::to_string(crit_chance) + "]";
+                                //sWorld->SendServerMessage(SERVER_MSG_STRING, str.c_str());
                                 break;
+                            }
                             case 7917: // Glyph of Shadowburn
                                 if (HasAuraState(AURA_STATE_HEALTHLESS_35_PERCENT, spellProto, caster))
                                     crit_chance += (*i)->GetAmount();
@@ -12502,6 +12532,22 @@ uint32 Unit::SpellHealingBonusDone(Unit* victim, SpellInfo const* spellProto, ui
     // Done fixed damage bonus auras
     DoneAdvertisedBenefit += SpellBaseHealingBonusDone(spellProto->GetSchoolMask());
     float coeff = spellProto->Effects[effIndex].BonusMultiplier;
+
+    //blessing of light fix
+    Aura* blessingOfLight = owner->GetAuraOfRankedSpell(19977);
+    if (blessingOfLight)
+    {
+        //flash of light
+        if (spellProto->SpellIconID == 242)
+        {
+            DoneAdvertisedBenefit += blessingOfLight->GetEffect(1)->GetBaseAmount();
+        }
+        //holy light
+        else if (spellProto->SpellIconID == 70)
+        {
+            DoneAdvertisedBenefit += blessingOfLight->GetEffect(0)->GetBaseAmount();
+        }
+    }
 
     // Check for table values
     SpellBonusEntry const* bonus = sSpellMgr->GetSpellBonusData(spellProto->Id);
@@ -15003,22 +15049,22 @@ DiminishingLevels Unit::GetDiminishing(DiminishingGroup group)
             continue;
 
         if (!i->hitCount)
-            return DIMINISHING_LEVEL_1;
+            return DIMINISHING_LEVEL_0;
 
         if (!i->hitTime)
-            return DIMINISHING_LEVEL_1;
+            return DIMINISHING_LEVEL_0;
 
         // If last spell was casted more than 15 seconds ago - reset the count.
         if (i->stack == 0 && getMSTimeDiff(i->hitTime, GameTime::GetGameTimeMS().count()) > 15000)
         {
-            i->hitCount = DIMINISHING_LEVEL_1;
-            return DIMINISHING_LEVEL_1;
+            i->hitCount = DIMINISHING_LEVEL_0;
+            return DIMINISHING_LEVEL_0;
         }
         // or else increase the count.
         else
             return DiminishingLevels(i->hitCount);
     }
-    return DIMINISHING_LEVEL_1;
+    return DIMINISHING_LEVEL_0;
 }
 
 void Unit::IncrDiminishing(DiminishingGroup group)
@@ -15032,13 +15078,13 @@ void Unit::IncrDiminishing(DiminishingGroup group)
             i->hitCount += 1;
         return;
     }
-    m_Diminishing.push_back(DiminishingReturn(group, GameTime::GetGameTimeMS().count(), DIMINISHING_LEVEL_2));
+    m_Diminishing.push_back(DiminishingReturn(group, GameTime::GetGameTimeMS().count(), DIMINISHING_LEVEL_1));
 }
 
 float Unit::ApplyDiminishingToDuration(DiminishingGroup group, int32& duration, Unit* caster, DiminishingLevels Level, int32 limitduration)
 {
     // xinef: dont apply diminish to self casts
-    if (duration == -1 || group == DIMINISHING_NONE)
+    if (duration == -1 || group == DIMINISHING_NONE || group == DIMINISHING_LIMITONLY)
         return 1.0f;
 
     // test pet/charm masters instead pets/charmeds
@@ -15066,15 +15112,15 @@ float Unit::ApplyDiminishingToDuration(DiminishingGroup group, int32& duration, 
             DiminishingLevels diminish = Level;
             switch (diminish)
             {
-                case DIMINISHING_LEVEL_1:
+                case DIMINISHING_LEVEL_0:
                     break;
-                case DIMINISHING_LEVEL_2:
+                case DIMINISHING_LEVEL_1:
                     mod = 0.65f;
                     break;
-                case DIMINISHING_LEVEL_3:
+                case DIMINISHING_LEVEL_2:
                     mod = 0.4225f;
                     break;
-                case DIMINISHING_LEVEL_4:
+                case DIMINISHING_LEVEL_3:
                     mod = 0.274625f;
                     break;
                 case DIMINISHING_LEVEL_TAUNT_IMMUNE:
@@ -15094,12 +15140,12 @@ float Unit::ApplyDiminishingToDuration(DiminishingGroup group, int32& duration, 
         DiminishingLevels diminish = Level;
         switch (diminish)
         {
-            case DIMINISHING_LEVEL_1:
+            case DIMINISHING_LEVEL_0:
                 break;
-            case DIMINISHING_LEVEL_2:
+            case DIMINISHING_LEVEL_1:
                 mod = 0.5f;
                 break;
-            case DIMINISHING_LEVEL_3:
+            case DIMINISHING_LEVEL_2:
                 mod = 0.25f;
                 break;
             case DIMINISHING_LEVEL_IMMUNE:
@@ -16727,18 +16773,20 @@ void Unit::ProcDamageAndSpellFor(bool isVictim, Unit* target, uint32 procFlag, u
                                 if ((!i->aura->IsPermanent() && i->aura->GetDuration() == i->aura->GetMaxDuration()) || procSpellInfo->Id == triggeredByAura->GetId() ||
                                     procSpellInfo->HasAttribute(SPELL_ATTR4_REACTIVE_DAMAGE_PROC))
                                     break;
-
-                            // chargeable mods are breaking on hit
-                            if (useCharges)
-                                takeCharges = true;
-                            else if (triggeredByAura->GetAmount()) // aura must have amount
+                            int32 maxDamage = 1350;
+                            Unit* caster = triggeredByAura->GetCaster()->ToUnit();
+                            if (caster)
                             {
-                                int32 damageLeft = triggeredByAura->GetAmount();
-                                // No damage left
-                                if (damageLeft < int32(damage))
-                                    i->aura->Remove();
-                                else
-                                    triggeredByAura->SetAmount(damageLeft - damage);
+                                maxDamage = (caster->GetLevel() * 25) - 150;
+                            }
+                            if (damage > maxDamage)
+                            {
+                                damage = maxDamage;
+                            }
+                            float chance = ((float)damage) / maxDamage * 100.f;
+                            if (roll_chance_f(chance))
+                            {
+                                i->aura->Remove();
                             }
                             break;
                         }

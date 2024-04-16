@@ -332,18 +332,22 @@ class spell_hun_aspect_of_the_beast : public AuraScript
 
     void OnRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
+        /*
         if (GetCaster())
             if (Player* caster = GetCaster()->ToPlayer())
                 if (Pet* pet = caster->GetPet())
                     pet->RemoveAurasDueToSpell(SPELL_HUNTER_ASPECT_OF_THE_BEAST_PET);
+                    */
     }
 
     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
     {
+        /*
         if (GetCaster())
             if (Player* caster = GetCaster()->ToPlayer())
                 if (caster->GetPet())
                     caster->CastSpell(caster, SPELL_HUNTER_ASPECT_OF_THE_BEAST_PET, true);
+                    */
     }
 
     void OnPetApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)

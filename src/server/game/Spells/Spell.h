@@ -295,6 +295,7 @@ public:
     void EffectSchoolDMG(SpellEffIndex effIndex);
     void EffectEnvironmentalDMG(SpellEffIndex effIndex);
     void EffectInstaKill(SpellEffIndex effIndex);
+    void MangosDummyPort(SpellEffIndex effIndex);
     void EffectDummy(SpellEffIndex effIndex);
     void EffectTeleportUnits(SpellEffIndex effIndex);
     void EffectApplyAura(SpellEffIndex effIndex);

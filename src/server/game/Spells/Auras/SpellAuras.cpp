@@ -1898,6 +1898,18 @@ void Aura::HandleAuraSpecificMods(AuraApplication const* aurApp, Unit* caster, b
         }
     }
 
+
+    switch (GetId())
+    {
+        //stoneform
+        case 20594:
+        if (apply)
+            target->CastSpell(target, 20612);
+        else
+            target->RemoveAurasDueToSpell(20612);
+        break;
+    }
+
     // mods at aura apply or remove
     switch (GetSpellInfo()->SpellFamilyName)
     {
@@ -2017,6 +2029,11 @@ bool Aura::IsAuraStronger(Aura const* newAura) const
             newEffect = newAura->GetEffect(j);
             if (!newEffect || thisEffect->GetAuraType() != newEffect->GetAuraType() || thisEffect->GetMiscValue() != newEffect->GetMiscValue())
                 continue;
+
+            if (thisEffect->GetSpellInfo()->GetRank() < newEffect->GetSpellInfo()->GetRank() && thisEffect->GetSpellInfo()->SpellIconID == newEffect->GetSpellInfo()->SpellIconID)
+            {
+                return false;
+            }
 
             // xinef: assume that all spells are either positive or negative, otherwise they should not be in one group
             int32 curValue = std::abs(thisEffect->GetAmount());

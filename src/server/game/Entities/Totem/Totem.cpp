@@ -191,10 +191,12 @@ bool Totem::IsImmunedToSpellEffect(SpellInfo const* spellInfo, uint32 index) con
     {
         // i think its wrong (xinef)
         //case SPELL_AURA_PERIODIC_LEECH:
-        case SPELL_AURA_PERIODIC_DAMAGE:
-        case SPELL_AURA_PERIODIC_DAMAGE_PERCENT:
-        case SPELL_AURA_MOD_FEAR:
-        case SPELL_AURA_TRANSFORM:
+        case SPELL_EFFECT_APPLY_AURA:
+        case SPELL_EFFECT_PERSISTENT_AREA_AURA:
+        case SPELL_EFFECT_APPLY_AREA_AURA_PARTY:
+        case SPELL_EFFECT_APPLY_AREA_AURA_PET:
+        case SPELL_EFFECT_DISPEL_MECHANIC:
+        case 0:
             return true;
         default:
             break;

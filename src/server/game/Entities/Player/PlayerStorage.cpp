@@ -7555,9 +7555,9 @@ void Player::_SaveDailyQuestStatus(CharacterDatabaseTransaction trans)
         if (GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx))
         {
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHARACTER_DAILYQUESTSTATUS);
-            stmt->SetData(0, GetGUID().GetCounter());
-            stmt->SetData(1, GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx));
-            stmt->SetData(2, uint64(m_lastDailyQuestTime));
+            stmt->SetData(0, GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx));
+            stmt->SetData(1, uint64(m_lastDailyQuestTime));
+            stmt->SetData(2, GetGUID().GetCounter());
             trans->Append(stmt);
         }
     }
@@ -7567,9 +7567,9 @@ void Player::_SaveDailyQuestStatus(CharacterDatabaseTransaction trans)
         for (DFQuestsDoneList::iterator itr = m_DFQuests.begin(); itr != m_DFQuests.end(); ++itr)
         {
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHARACTER_DAILYQUESTSTATUS);
-            stmt->SetData(0, GetGUID().GetCounter());
-            stmt->SetData(1, (*itr));
-            stmt->SetData(2, uint64(m_lastDailyQuestTime));
+            stmt->SetData(0, (*itr));
+            stmt->SetData(1, uint64(m_lastDailyQuestTime));
+            stmt->SetData(2, GetGUID().GetCounter());
             trans->Append(stmt);
         }
     }

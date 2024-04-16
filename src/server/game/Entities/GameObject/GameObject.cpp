@@ -716,10 +716,10 @@ void GameObject::Update(uint32 diff)
                         if (owner && goInfo->trap.autoCloseTime != -1) // hunter trap
                         {
                             Acore::NearestAttackableNoTotemUnitInObjectRangeCheck checker(this, owner, radius);
-                            Acore::UnitSearcher<Acore::NearestAttackableNoTotemUnitInObjectRangeCheck> searcher(this, target, checker);
+                            Acore::UnitLastSearcher<Acore::NearestAttackableNoTotemUnitInObjectRangeCheck> searcher(this, target, checker);
                             Cell::VisitAllObjects(this, searcher, radius);
                         }
-                        else                                        // environmental trap
+                        else                                        // environmental trap 
                         {
                             // environmental damage spells already have around enemies targeting but this not help in case not existed GO casting support
                             // affect only players

@@ -69,8 +69,10 @@ void WorldSession::HandleTalentWipeConfirmOpcode(WorldPacket& recvData)
         return;
     }
 
+    /*
     if (!unit->isCanTrainingAndResetTalentsOf(_player))
         return;
+        */
 
     // remove fake death
     if (GetPlayer()->HasUnitState(UNIT_STATE_DIED))

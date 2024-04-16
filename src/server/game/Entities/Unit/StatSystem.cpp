@@ -348,7 +348,7 @@ void Player::UpdateAttackPowerAndDamage(bool ranged)
 
         if (IsClass(CLASS_HUNTER, CLASS_CONTEXT_STATS))
         {
-            val2 = level * 2.0f + GetStat(STAT_AGILITY) - 10.0f;
+            val2 = (level * 2.0f) + (GetStat(STAT_AGILITY) * 2.0f) - 10.0f;
         }
         else if (IsClass(CLASS_ROGUE, CLASS_CONTEXT_STATS) || IsClass(CLASS_WARRIOR, CLASS_CONTEXT_STATS))
         {
@@ -1167,6 +1167,7 @@ bool Guardian::UpdateStats(Stats stat)
 
     float value = GetTotalStatValue(stat);
     SetStat(stat, int32(value));
+
 
     switch (stat)
     {

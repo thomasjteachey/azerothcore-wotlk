@@ -2183,16 +2183,18 @@ SpellSpecificType SpellInfo::LoadSpellSpecific() const
             }
         case SPELLFAMILY_MAGE:
             {
-                // family flags 18(Molten), 25(Frost/Ice), 28(Mage)
-                if (SpellFamilyFlags[0] & 0x12040000)
-                    return SPELL_SPECIFIC_MAGE_ARMOR;
+            if (
+                ((SpellFamilyFlags[0] & 0x1000000) && GetEffect(EFFECT_0).IsAura(SPELL_AURA_MOD_CONFUSE))
+                || (Id == 118 || Id == 28272 || Id == 28270 || Id == 12826 || Id == 28271 || Id == 12825 || Id == 12824)
+                )
+                return SPELL_SPECIFIC_MAGE_POLYMORPH;
+            // family flags 18(Molten), 25(Frost/Ice), 28(Mage)
+            if (SpellIconID == 1711 || SpellIconID == 181)
+                return SPELL_SPECIFIC_MAGE_ARMOR;
 
-                // Arcane brillance and Arcane intelect (normal check fails because of flags difference)
-                if (SpellFamilyFlags[0] & 0x400)
-                    return SPELL_SPECIFIC_MAGE_ARCANE_BRILLANCE;
-
-                if ((SpellFamilyFlags[0] & 0x1000000) && Effects[0].ApplyAuraName == SPELL_AURA_MOD_CONFUSE)
-                    return SPELL_SPECIFIC_MAGE_POLYMORPH;
+            // Arcane brillance and Arcane intelect (normal check fails because of flags difference)
+            if (SpellFamilyFlags[0] & 0x400)
+                return SPELL_SPECIFIC_MAGE_ARCANE_BRILLANCE;
 
                 break;
             }
@@ -2203,8 +2205,10 @@ SpellSpecificType SpellInfo::LoadSpellSpecific() const
                     return SPELL_SPECIFIC_CURSE;
 
                 // Warlock (Demon Armor | Demon Skin | Fel Armor)
-                if (SpellFamilyFlags[1] & 0x20000020 || SpellFamilyFlags[2] & 0x00000010)
-                    return SPELL_SPECIFIC_WARLOCK_ARMOR;
+                if (SpellFamilyFlags[1] & 0x20000020 || SpellFamilyFlags[2] & 0x00000010
+                    || Id == 687 || Id == 696
+                    || Id == 11735 || Id == 706 || Id == 1086 || Id == 11733 || Id == 11734
+                    )
 
                 //seed of corruption and corruption
                 if (SpellFamilyFlags[1] & 0x10 || SpellFamilyFlags[0] & 0x2)
@@ -2235,23 +2239,29 @@ SpellSpecificType SpellInfo::LoadSpellSpecific() const
             {
                 // Collection of all the seal family flags. No other paladin spell has any of those.
                 if (SpellFamilyFlags[1] & 0x26000C00
-                        || SpellFamilyFlags[0] & 0x0A000000)
+                    || SpellFamilyFlags[0] & 0x0A000000
+                    || Id == 20308 || Id == 21082 || Id == 20162 || Id == 20305 || Id == 20306 || Id == 20307
+                    )
                     return SPELL_SPECIFIC_SEAL;
 
                 if (SpellFamilyFlags[0] & 0x00002190)
                     return SPELL_SPECIFIC_HAND;
 
-                // Judgement of Wisdom, Judgement of Light, Judgement of Justice
-                if (Id == 20184 || Id == 20185 || Id == 20186)
+                // Judgement of Wisdom, Judgement of Light, Judgement of Justice, Judgement of Righteousness
+                if (
+                    Id == 20184 //justice
+                    || Id == 20185 || Id == 20344 || Id == 20345 || Id == 20346 //light
+                    || Id == 20186 || Id == 20354 || Id == 20355 //wisdom
+                    || Id == 21183 || Id == 20303 || Id == 20188 || Id == 20300 || Id == 20301 || Id == 20302 //crusader
+                    || Id == 20187 || Id == 20280 || Id == 20281 || Id == 20282 || Id == 20283 || Id == 20284 || Id == 20285 || Id == 20286 //righteousness
+                    || Id == 20425 || Id == 20467 || Id == 20962 || Id == 20963 || Id == 20961 || Id == 20964 || Id == 20965 || Id == 20967 || Id == 20966 || Id == 20968 //command
+                    )
                     return SPELL_SPECIFIC_JUDGEMENT;
 
                 // only paladin auras have this (for palaldin class family)
-                if (SpellFamilyFlags[2] & 0x00000020)
+                if (SpellFamilyFlags[2] & 0x00000020
+                    || Id == 20218)
                     return SPELL_SPECIFIC_AURA;
-
-                // Illidari Council Paladin (Gathios the Shatterer)
-                if (Id == 41459 || Id == 41469)
-                    return SPELL_SPECIFIC_SEAL;
 
                 break;
             }

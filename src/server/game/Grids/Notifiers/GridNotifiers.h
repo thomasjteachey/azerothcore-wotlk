@@ -915,11 +915,6 @@ namespace Acore
                 return false;
             }
 
-            if (u->GetTypeId() == TYPEID_UNIT && u->ToCreature()->IsTotem())
-            {
-                return false;
-            }
-
             if (!u->isTargetableForAttack(false, i_owner))
             {
                 return false;

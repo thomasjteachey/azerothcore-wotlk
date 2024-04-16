@@ -639,7 +639,7 @@ Spell::Spell(Unit* caster, SpellInfo const* info, TriggerCastFlags triggerFlags,
     destTarget = nullptr;
     damage = 0;
     effectHandleMode = SPELL_EFFECT_HANDLE_LAUNCH;
-    m_diminishLevel = DIMINISHING_LEVEL_1;
+    m_diminishLevel = DIMINISHING_LEVEL_0;
     m_diminishGroup = DIMINISHING_NONE;
     m_damage = 0;
     m_healing = 0;
@@ -672,6 +672,10 @@ Spell::Spell(Unit* caster, SpellInfo const* info, TriggerCastFlags triggerFlags,
     m_canReflect = m_spellInfo->DmgClass == SPELL_DAMAGE_CLASS_MAGIC && !m_spellInfo->HasAttribute(SPELL_ATTR0_IS_ABILITY)
                    && !m_spellInfo->HasAttribute(SPELL_ATTR1_NO_REFLECTION) && !m_spellInfo->HasAttribute(SPELL_ATTR0_NO_IMMUNITIES)
                    && !m_spellInfo->IsPassive() && (!m_spellInfo->IsPositive() || m_spellInfo->HasEffect(SPELL_EFFECT_DISPEL));
+
+    //freezing trap and immolation trap reflectable
+    m_canReflect = m_canReflect || (m_spellInfo->Id == 3355 || m_spellInfo->Id == 14308 || m_spellInfo->Id == 14309);
+    m_canReflect = m_canReflect || (m_spellInfo->Id == 13797 || m_spellInfo->Id == 14298 || m_spellInfo->Id == 14299 || m_spellInfo->Id == 14300 || m_spellInfo->Id == 14301);
 
     CleanupTargetList();
     memset(m_effectExecuteData, 0, MAX_SPELL_EFFECTS * sizeof(ByteBuffer*));
@@ -2959,7 +2963,11 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
     if (missInfo != SPELL_MISS_EVADE && effectUnit != m_caster && m_caster->IsFriendlyTo(effectUnit) && m_spellInfo->IsPositive() &&
         effectUnit->IsInCombat() && !m_spellInfo->HasAttribute(SPELL_ATTR1_NO_THREAT))
     {
-        m_caster->SetInCombatWith(effectUnit);
+        if (m_spellInfo->Id != 14309 && m_spellInfo->Id != 14308 && m_spellInfo->Id != 3355 && m_spellInfo->Id != 13810 && m_spellInfo->Id != 63487 && m_spellInfo->Id != 67035
+            && m_spellInfo->Id != 72216 && m_spellInfo->Id != 19185 && m_spellInfo->Id != 3600) //freezing/frost traps don't put you in combat
+        {
+            m_caster->SetInCombatWith(effectUnit);
+        }
     }
 
     // Check for SPELL_ATTR7_CAN_CAUSE_INTERRUPT
@@ -3078,7 +3086,7 @@ SpellMissInfo Spell::DoSpellHitOnUnit(Unit* unit, uint32 effectMask, bool scaleA
             }
 
             // xinef: triggered spells should not prolong combat
-            if (unit->IsInCombat() && !m_spellInfo->HasAttribute(SPELL_ATTR3_SUPRESS_TARGET_PROCS) && !m_triggeredByAuraSpell)
+            if (unit->IsInCombat() && !m_spellInfo->HasAttribute(SPELL_ATTR3_SUPRESS_TARGET_PROCS) && !m_triggeredByAuraSpell && !unit->IsPet())
             {
                 m_caster->SetInCombatState(unit->GetCombatTimer() > 0, unit);
                 unit->getHostileRefMgr().threatAssist(m_caster, 0.0f);
@@ -3535,7 +3543,7 @@ SpellCastResult Spell::prepare(SpellCastTargets const* targets, AuraEffect const
 
     m_powerCost = m_CastItem ? 0 : m_spellInfo->CalcPowerCost(m_caster, m_spellSchoolMask, this);
 
-    // Set combo point requirement
+    //  Set combo point requirement
     if (HasTriggeredCastFlag(TRIGGERED_IGNORE_COMBO_POINTS) || m_CastItem)
         m_needComboPoints = false;
 
@@ -4238,7 +4246,7 @@ void Spell::_handle_immediate_phase()
 {
     m_spellAura = nullptr;
     // initialize Diminishing Returns Data
-    m_diminishLevel = DIMINISHING_LEVEL_1;
+    m_diminishLevel = DIMINISHING_LEVEL_0;
     m_diminishGroup = DIMINISHING_NONE;
 
     // handle some immediate features of the spell here
@@ -6089,6 +6097,14 @@ SpellCastResult Spell::CheckCast(bool strict)
         // for effects of spells that have only one target
         switch (m_spellInfo->Effects[i].Effect)
         {
+            case SPELL_EFFECT_ADD_HONOR:
+                {
+                    if (m_spellInfo->Effects[i].BasePoints + 1 + m_caster->ToPlayer()->GetHonorPoints() > sWorld->getIntConfig(CONFIG_MAX_HONOR_POINTS))
+                    {
+                        return SPELL_FAILED_CANT_DO_THAT_RIGHT_NOW;
+                    }
+                    break;
+                }
             case SPELL_EFFECT_LEARN_SPELL:
                 {
                     if (m_caster->GetTypeId() != TYPEID_PLAYER)
@@ -6408,9 +6424,11 @@ SpellCastResult Spell::CheckCast(bool strict)
                             return SPELL_FAILED_ALREADY_HAVE_CHARM;
                     }
 
+                    /*
                     if (m_caster->GetTypeId() == TYPEID_PLAYER && m_caster->IsClass(CLASS_WARLOCK, CLASS_CONTEXT_PET) && strict)
                         if (Pet* pet = m_caster->ToPlayer()->GetPet())
                             pet->CastSpell(pet, 32752, true, nullptr, nullptr, pet->GetGUID()); //starting cast, trigger pet stun (cast by pet so it doesn't attack player)
+                            */
 
                     Player* playerCaster = unitCaster->ToPlayer();
                     if (playerCaster && playerCaster->GetPetStable())
@@ -7018,6 +7036,12 @@ SpellCastResult Spell::CheckRange(bool strict)
     if (!strict && m_casttime == 0)
         return SPELL_CAST_OK;
 
+    //don't check for self only spells (imp concussive shot)
+    if (m_spellInfo->RangeEntry && m_spellInfo->RangeEntry->ID == 1)
+    {
+        return SPELL_CAST_OK;
+    }
+
     uint32 range_type = 0;
 
     if (m_spellInfo->RangeEntry)
@@ -7066,7 +7090,7 @@ SpellCastResult Spell::CheckRange(bool strict)
 
             if (m_spellInfo->DmgClass == SPELL_DAMAGE_CLASS_RANGED && range_type == SPELL_RANGE_RANGED)
             {
-                if (m_caster->IsWithinMeleeRange(target))
+                if (m_caster->IsWithinMeleeRange(target, min_range))
                     return SPELL_FAILED_TOO_CLOSE;
             }
 
@@ -7751,14 +7775,21 @@ void Spell::Delayed() // only called in DealDamage()
     //    return;
 
     //check pushback reduce
-    int32 delaytime = 500;                                  // spellcasting delay is normally 500ms
+    int32 delaytime = (1000 - ((m_delayAtDamageCount - 1) * 200));// spellcasting delay is normally 500ms
+    if (delaytime <= 200)
+    {
+        delaytime = 200;
+    }
     int32 delayReduce = 100;                                // must be initialized to 100 for percent modifiers
     m_caster->ToPlayer()->ApplySpellMod(m_spellInfo->Id, SPELLMOD_NOT_LOSE_CASTING_TIME, delayReduce, this);
     delayReduce += m_caster->GetTotalAuraModifier(SPELL_AURA_REDUCE_PUSHBACK) - 100;
     if (delayReduce >= 100)
         return;
 
-    AddPct(delaytime, -delayReduce);
+    if (roll_chance_i(delayReduce))
+        return;
+    m_delayAtDamageCount++;
+    AddPct(delaytime, 0);
 
     if (m_timer + delaytime > m_casttime)
     {

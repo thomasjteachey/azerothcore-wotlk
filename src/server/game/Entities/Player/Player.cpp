@@ -1512,7 +1512,10 @@ bool Player::TeleportTo(uint32 mapid, float x, float y, float z, float orientati
                 // KEEP THIS ORDER!
                 RemoveArenaAuras();
                 if (pet)
+                {
                     pet->RemoveArenaAuras();
+                    pet->SetMaxHealth(pet->GetMaxHealth());
+                }
 
                 RemoveArenaSpellCooldowns(true);
             }
@@ -1749,8 +1752,6 @@ void Player::RegenerateAll()
     m_regenTimerCount += m_regenTimer;
     m_foodEmoteTimerCount += m_regenTimer;
 
-    Regenerate(POWER_ENERGY);
-
     Regenerate(POWER_MANA);
 
     // Runes act as cooldowns, and they don't need to send any data
@@ -1782,7 +1783,7 @@ void Player::RegenerateAll()
         {
             RegenerateHealth();
         }
-
+        Regenerate(POWER_ENERGY);
         Regenerate(POWER_RAGE);
         if (IsClass(CLASS_DEATH_KNIGHT, CLASS_CONTEXT_ABILITY))
             Regenerate(POWER_RUNIC_POWER);
@@ -1880,7 +1881,7 @@ void Player::Regenerate(Powers power)
             }
             break;
         case POWER_ENERGY:                                  // Regenerate energy (rogue)
-            addvalue += 0.01f * m_regenTimer * sWorld->getRate(RATE_POWER_ENERGY);
+            addvalue += 20 * sWorld->getRate(RATE_POWER_ENERGY);
             break;
         case POWER_RUNIC_POWER:
             {
@@ -2720,6 +2721,12 @@ void Player::InitStatsForLevel(bool reapplyMods)
     // update level to hunter/summon pet
     if (Pet* pet = GetPet())
         pet->SynchronizeLevelWithOwner();
+
+    if (getClass() == CLASS_ROGUE || getClass() == CLASS_DRUID)
+    {
+        SetFloatValue(UNIT_FIELD_POWER_REGEN_FLAT_MODIFIER + POWER_ENERGY, -10.f);
+        SetFloatValue(UNIT_FIELD_POWER_REGEN_INTERRUPTED_FLAT_MODIFIER + POWER_ENERGY, -10.f);
+    }
 }
 
 bool Player::HasActivePowerType(Powers power)
@@ -3519,12 +3526,7 @@ void Player::RemoveArenaSpellCooldowns(bool removeActivePetCooldowns)
         {
             continue;
         }
-
-        if (spellInfo->HasAttribute(SPELL_ATTR4_IGNORE_DEFAULT_ARENA_RESTRICTIONS))
-            RemoveSpellCooldown(itr->first, true);
-        else if (spellInfo->RecoveryTime < 10 * MINUTE * IN_MILLISECONDS && spellInfo->CategoryRecoveryTime < 10 * MINUTE * IN_MILLISECONDS && itr->second.end < infTime// xinef: dont remove active cooldowns - bugz
-                 && itr->second.maxduration < 10 * MINUTE * IN_MILLISECONDS) // xinef: dont clear cooldowns that have maxduration > 10 minutes (eg item cooldowns with no spell.dbc cooldown info)
-            RemoveSpellCooldown(itr->first, true);
+        RemoveSpellCooldown(itr->first, true);
     }
 
     // pet cooldowns
@@ -3639,35 +3641,12 @@ void Player::_SaveSpellCooldowns(CharacterDatabaseTransaction trans, bool logout
 
 uint32 Player::resetTalentsCost() const
 {
-    // The first time reset costs 1 gold
-    if (m_resetTalentsCost < 1 * GOLD)
-        return 1 * GOLD;
-    // then 5 gold
-    else if (m_resetTalentsCost < 5 * GOLD)
-        return 5 * GOLD;
-    // After that it increases in increments of 5 gold
-    else if (m_resetTalentsCost < 10 * GOLD)
-        return 10 * GOLD;
-    else
+    //first time is free
+    if (m_resetTalentsTime == 0)
     {
-        uint64 months = (GameTime::GetGameTime().count() - m_resetTalentsTime) / MONTH;
-        if (months > 0)
-        {
-            // This cost will be reduced by a rate of 5 gold per month
-            int32 new_cost = int32(m_resetTalentsCost - 5 * GOLD * months);
-            // to a minimum of 10 gold.
-            return (new_cost < 10 * GOLD ? 10 * GOLD : new_cost);
-        }
-        else
-        {
-            // After that it increases in increments of 5 gold
-            int32 new_cost = m_resetTalentsCost + 5 * GOLD;
-            // until it hits a cap of 50 gold.
-            if (new_cost > 50 * GOLD)
-                new_cost = 50 * GOLD;
-            return new_cost;
-        }
+        return 0;
     }
+    return 1 * GOLD;
 }
 
 bool Player::resetTalents(bool noResetCost)
@@ -4223,10 +4202,6 @@ void Player::DeleteFromDB(ObjectGuid::LowType lowGuid, uint32 accountId, bool up
                 trans->Append(stmt);
 
                 stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CHAR_GLYPHS);
-                stmt->SetData(0, lowGuid);
-                trans->Append(stmt);
-
-                stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_QUEST_STATUS_DAILY_CHAR);
                 stmt->SetData(0, lowGuid);
                 trans->Append(stmt);
 
@@ -5032,84 +5007,90 @@ float Player::GetMeleeCritFromAgility()
 
     if (level > GT_MAX_LEVEL)
         level = GT_MAX_LEVEL;
-
-    GtChanceToMeleeCritBaseEntry const* critBase  = sGtChanceToMeleeCritBaseStore.LookupEntry(pclass - 1);
-    GtChanceToMeleeCritEntry     const* critRatio = sGtChanceToMeleeCritStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    if (!critBase || !critRatio)
-        return 0.0f;
-
-    float crit = critBase->base + GetStat(STAT_AGILITY) * critRatio->ratio;
-    return crit * 100.0f;
+    float crit = GetStat(STAT_AGILITY) / 20.f;
+    if (pclass == CLASS_ROGUE)
+    {
+        crit = GetStat(STAT_AGILITY) / 29.f;
+    }
+    if (pclass == CLASS_HUNTER)
+    {
+        crit = GetStat(STAT_AGILITY) / 53.f;
+    }
+    return crit;
 }
 
 void Player::GetDodgeFromAgility(float& diminishing, float& nondiminishing)
 {
+    uint8 level = GetLevel();
+    uint32 pclass = GetClass();
+
     // Table for base dodge values
     const float dodge_base[MAX_CLASSES] =
     {
-        0.036640f, // Warrior
-        0.034943f, // Paladi
+         0.036640f, // Warrior
+         0.034943f, // Paladin
         -0.040873f, // Hunter
-        0.020957f, // Rogue
-        0.034178f, // Priest
-        0.036640f, // DK
-        0.021080f, // Shaman
-        0.036587f, // Mage
-        0.024211f, // Warlock
-        0.0f,      // ??
-        0.056097f  // Druid
+         0.020957f, // Rogue
+         0.034178f, // Priest
+         0.036640f, // DK
+         0.021080f, // Shaman
+         0.036587f, // Mage
+         0.024211f, // Warlock
+         0.0f,      // ??
+         0.056097f  // Druid
     };
-    // Crit/agility to dodge/agility coefficient multipliers; 3.2.0 increased required agility by 15%
-    const float crit_to_dodge[MAX_CLASSES] =
-    {
-        0.85f / 1.15f,  // Warrior
-        1.00f / 1.15f,  // Paladin
-        1.11f / 1.15f,  // Hunter
-        2.00f / 1.15f,  // Rogue
-        1.00f / 1.15f,  // Priest
-        0.85f / 1.15f,  // DK
-        1.60f / 1.15f,  // Shaman
-        1.00f / 1.15f,  // Mage
-        0.97f / 1.15f,  // Warlock (?)
-        0.0f,           // ??
-        2.00f / 1.15f   // Druid
-    };
-
-    uint8 level = GetLevel();
-    uint32 pclass = getClass();
 
     if (level > GT_MAX_LEVEL)
         level = GT_MAX_LEVEL;
-
-    // Dodge per agility is proportional to crit per agility, which is available from DBC files
-    GtChanceToMeleeCritEntry  const* dodgeRatio = sGtChanceToMeleeCritStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    if (!dodgeRatio || pclass > MAX_CLASSES)
-        return;
-
-    /// @todo: research if talents/effects that increase total agility by x% should increase non-diminishing part
-    float base_agility = GetCreateStat(STAT_AGILITY) * m_auraModifiersGroup[UNIT_MOD_STAT_START + static_cast<uint16>(STAT_AGILITY)][BASE_PCT];
-    float bonus_agility = GetStat(STAT_AGILITY) - base_agility;
+    float dodge = GetStat(STAT_AGILITY) / 20.f;
+    if (pclass == CLASS_ROGUE)
+    {
+        dodge = GetStat(STAT_AGILITY) / 14.5f;
+    }
+    if (pclass == CLASS_HUNTER)
+    {
+        dodge = GetStat(STAT_AGILITY) / 26.f;
+    }
 
     // calculate diminishing (green in char screen) and non-diminishing (white) contribution
-    diminishing = 100.0f * bonus_agility * dodgeRatio->ratio * crit_to_dodge[pclass - 1];
-    nondiminishing = 100.0f * (dodge_base[pclass - 1] + base_agility * dodgeRatio->ratio * crit_to_dodge[pclass - 1]);
+    nondiminishing = 100.f * dodge_base[pclass - 1] + dodge;
+    //nondiminishing = 100.0f * (dodge_base[pclass-1] + base_agility * dodgeRatio->Data * crit_to_dodge[pclass-1]);
 }
 
 float Player::GetSpellCritFromIntellect()
 {
-    uint8 level = GetLevel();
-    uint32 pclass = getClass();
+    // Chance to crit is computed from INT and LEVEL as follows:
+    //   chance = base + INT / (rate0 + rate1 * LEVEL)
+    // The formula keeps the crit chance at %5 on every level unless the player
+    // increases his intelligence by other means (enchants, buffs, talents, ...)
 
-    if (level > GT_MAX_LEVEL)
-        level = GT_MAX_LEVEL;
-
-    GtChanceToSpellCritBaseEntry const* critBase  = sGtChanceToSpellCritBaseStore.LookupEntry(pclass - 1);
-    GtChanceToSpellCritEntry     const* critRatio = sGtChanceToSpellCritStore.LookupEntry((pclass - 1) * GT_MAX_LEVEL + level - 1);
-    if (!critBase || !critRatio)
+    //[TZERO] from mangos 3462 for 1.12 MUST BE CHECKED
+    static const struct
+    {
+        float base;
+        float rate0, rate1;
+    }
+    crit_data[MAX_CLASSES] =
+    {
+        {   0.0f,   0.0f,  10.0f  },                        //  0: unused
+        {   0.0f,   0.0f,  10.0f  },                        //  1: warrior
+        {   3.70f, 14.77f,  0.65f },                        //  2: paladin
+        {   0.0f,   0.0f,  10.0f  },                        //  3: hunter
+        {   0.0f,   0.0f,  10.0f  },                        //  4: rogue
+        {   2.97f, 10.03f,  0.82f },                        //  5: priest
+        {   0.0f,   0.0f,  10.0f  },                        //  6: unused
+        {   3.54f, 11.51f,  0.80f },                        //  7: shaman
+        {   3.70f, 14.77f,  0.65f },                        //  8: mage
+        {   3.18f, 11.30f,  0.82f },                        //  9: warlock
+        {   0.0f,   0.0f,  10.0f  },                        // 10: unused
+        {   3.33f, 12.41f,  0.79f }                         // 11: druid
+    };
+    // FIXME: Add base value and scaling for hunters, fix the formula
+    const uint32 pclass = getClass();
+    if (pclass >= MAX_CLASSES)
         return 0.0f;
-
-    float crit = critBase->base + GetStat(STAT_INTELLECT) * critRatio->ratio;
-    return crit * 100.0f;
+    const float crit_ratio = crit_data[pclass].rate0 + crit_data[pclass].rate1 * GetLevel();
+    return (crit_data[pclass].base + (GetStat(STAT_INTELLECT) / crit_ratio));
 }
 
 float Player::GetRatingMultiplier(CombatRating cr) const
@@ -6136,7 +6117,7 @@ bool Player::RewardHonor(Unit* uVictim, uint32 groupsize, int32 honor, bool awar
     if (awardXP)
         if (Battleground* bg = GetBattleground())
         {
-            bg->UpdatePlayerScore(this, SCORE_BONUS_HONOR, honor, false); //false: prevent looping
+            //bg->UpdatePlayerScore(this, SCORE_BONUS_HONOR, honor, false); //false: prevent looping
             // Xinef: Only for BG activities
             if (!uVictim)
             {
@@ -6797,6 +6778,7 @@ void Player::_ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply
         _ApplyWeaponDamage(slot, proto, ssv, apply);
     }
 
+    /*
     // Druids get feral AP bonus from weapon dps (also use DPS from ScalingStatValue)
     if (IsClass(CLASS_DRUID, CLASS_CONTEXT_STATS))
     {
@@ -6813,6 +6795,7 @@ void Player::_ApplyItemBonuses(ItemTemplate const* proto, uint8 slot, bool apply
         if (feral_bonus)
             ApplyFeralAPBonus(feral_bonus, apply);
     }
+    */
 }
 
 void Player::_ApplyWeaponDamage(uint8 slot, ItemTemplate const* proto, ScalingStatValuesEntry const* ssv, bool apply)
@@ -7213,7 +7196,11 @@ void Player::CastItemCombatSpell(Unit* target, WeaponAttackType attType, uint32 
                 chance = GetWeaponProcChance();
             }
 
-            if (roll_chance_f(chance) && sScriptMgr->OnCastItemCombatSpell(this, target, spellInfo, item))
+            if (roll_chance_f(chance) && sScriptMgr->OnCastItemCombatSpell(this, target, spellInfo, item)
+                && GetShapeshiftForm() != FORM_CAT && GetShapeshiftForm() != FORM_BEAR && GetShapeshiftForm() != FORM_DIREBEAR
+                && GetShapeshiftForm() != FORM_AQUA && GetShapeshiftForm() != FORM_TRAVEL && GetShapeshiftForm() != FORM_MOONKIN
+                && GetShapeshiftForm() != FORM_GHOSTWOLF
+                )
                 CastSpell(target, spellInfo->Id, TriggerCastFlags(TRIGGERED_FULL_MASK & ~TRIGGERED_IGNORE_SPELL_AND_CATEGORY_CD), item);
         }
     }
@@ -11288,6 +11275,8 @@ void Player::LeaveBattleground(Battleground* bg)
     GetMotionMaster()->MovementExpired();
     StopMoving();
     TeleportToEntryPoint();
+    RemoveAurasDueToSpell(SPELL_INSTANT_CAST);
+    SetFactionForRace(getRace());
 }
 
 bool Player::CanJoinToBattleground() const
@@ -12591,7 +12580,7 @@ uint32 Player::GetResurrectionSpellId()
     }
 
     // Reincarnation (passive spell)  // prio: 1                  // Glyph of Renewed Life
-    if (prio < 1 && HasSpell(20608) && !HasSpellCooldown(21169) && (HasAura(58059) || HasItemCount(17030)))
+    if (prio < 1 && HasSpell(20608) && !HasSpellCooldown(21169))
         spell_id = 21169;
 
     return spell_id;
@@ -13876,6 +13865,11 @@ void Player::CompletedAchievement(AchievementEntry const* entry)
 void Player::LearnTalent(uint32 talentId, uint32 talentRank, bool command /*= false*/)
 {
     uint32 CurTalentPoints = GetFreeTalentPoints();
+
+    if (InBattleground() || InArena())
+    {
+        return;
+    }
 
     if (!command)
     {

@@ -47,6 +47,9 @@
 #include "World.h"
 #include "WorldPacket.h"
 #include "WorldStatePackets.h"
+#include "CharacterCache.h"
+#include "WorldSession.h"
+#include "Item.h"
 
 namespace Acore
 {
@@ -190,14 +193,14 @@ Battleground::Battleground()
 
     m_HonorMode = BG_NORMAL;
 
-    StartDelayTimes[BG_STARTING_EVENT_FIRST]  = BG_START_DELAY_2M;
-    StartDelayTimes[BG_STARTING_EVENT_SECOND] = BG_START_DELAY_1M;
-    StartDelayTimes[BG_STARTING_EVENT_THIRD]  = BG_START_DELAY_30S;
+    StartDelayTimes[BG_STARTING_EVENT_FIRST]  = BG_START_DELAY_1M;
+    StartDelayTimes[BG_STARTING_EVENT_SECOND] = BG_START_DELAY_30S;
+    StartDelayTimes[BG_STARTING_EVENT_THIRD]  = BG_START_DELAY_15S;
     StartDelayTimes[BG_STARTING_EVENT_FOURTH] = BG_START_DELAY_NONE;
 
-    StartMessageIds[BG_STARTING_EVENT_FIRST] = BG_TEXT_START_TWO_MINUTES;
-    StartMessageIds[BG_STARTING_EVENT_SECOND] = BG_TEXT_START_ONE_MINUTE;
-    StartMessageIds[BG_STARTING_EVENT_THIRD] = BG_TEXT_START_HALF_MINUTE;
+    StartMessageIds[BG_STARTING_EVENT_FIRST] = BG_TEXT_START_ONE_MINUTE;
+    StartMessageIds[BG_STARTING_EVENT_SECOND] = BG_TEXT_START_HALF_MINUTE;
+    StartMessageIds[BG_STARTING_EVENT_THIRD] = BG_TEXT_START_FIFTEEN_SEC;
     StartMessageIds[BG_STARTING_EVENT_FOURTH] = BG_TEXT_BATTLE_HAS_BEGUN;
 
     // pussywizard:
@@ -284,7 +287,7 @@ void Battleground::Update(uint32 diff)
         case STATUS_IN_PROGRESS:
             if (isArena())
             {
-                if (GetStartTime() >= 46 * MINUTE * IN_MILLISECONDS) // pussywizard: 1min startup + 45min allowed duration
+                if (GetStartTime() >= 21 * MINUTE * IN_MILLISECONDS) // pussywizard: 1min startup + 20min allowed duration
                 {
                     EndBattleground(PVP_TEAM_NEUTRAL);
                     return;
@@ -560,6 +563,7 @@ inline void Battleground::_ProcessJoin(uint32 diff)
                     player->GetSession()->SendPacket(&status);
 
                     player->RemoveAurasDueToSpell(SPELL_ARENA_PREPARATION);
+                    player->RemoveAurasDueToSpell(SPELL_INSTANT_CAST);
                     player->ResetAllPowers();
                     // remove auras with duration lower than 30s
                     Unit::AuraApplicationMap& auraMap = player->GetAppliedAuras();
@@ -613,6 +617,7 @@ inline void Battleground::_ProcessJoin(uint32 diff)
             for (BattlegroundPlayerMap::const_iterator itr = GetPlayers().begin(); itr != GetPlayers().end(); ++itr)
             {
                 itr->second->RemoveAurasDueToSpell(SPELL_PREPARATION);
+                itr->second->RemoveAurasDueToSpell(SPELL_INSTANT_CAST);
                 itr->second->ResetAllPowers();
             }
 
@@ -850,31 +855,59 @@ void Battleground::EndBattleground(PvPTeamId winnerTeamId)
             player->getHostileRefMgr().deleteReferences();
         }
 
-        uint32 winner_kills = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_HONOR_FIRST);
-        uint32 loser_kills = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_LOSER_HONOR_FIRST);
+        uint32 winner_honor = sWorld->getIntConfig(CONFIG_CENTURION_BG_REWARD_HONOR_WINNER);
+        uint32 loser_honor = sWorld->getIntConfig(CONFIG_CENTURION_BG_REWARD_HONOR_LOSER);
+        uint32 winner_money = sWorld->getIntConfig(CONFIG_CENTURION_BG_REWARD_MONEY_WINNER);
+        uint32 loser_money = sWorld->getIntConfig(CONFIG_CENTURION_BG_REWARD_MONEY_LOSER);
         uint32 winner_arena = player->GetRandomWinner() ? sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_ARENA_LAST) : sWorld->getIntConfig(CONFIG_BG_REWARD_WINNER_ARENA_FIRST);
 
-        // Reward winner team
-        if (bgTeamId == GetTeamId(winnerTeamId))
+        // if we're arena
+        if (!isBattleground())
         {
-            if (IsRandom() || BattlegroundMgr::IsBGWeekend(GetBgTypeID(true)))
-            {
-                UpdatePlayerScore(player, SCORE_BONUS_HONOR, GetBonusHonorFromKill(winner_kills));
-
-                // Xinef: check player level and not bracket level if (CanAwardArenaPoints())
-                if (player->GetLevel() >= sWorld->getIntConfig(CONFIG_DAILY_RBG_MIN_LEVEL_AP_REWARD))
-                    player->ModifyArenaPoints(winner_arena);
-
-                if (!player->GetRandomWinner())
-                    player->SetRandomWinner(true);
-            }
-
-            player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_WIN_BG, player->GetMapId());
+            float arenaMultiplier = sWorld->getFloatConfig(CONFIG_CENTURION_BG_ARENA_REWARD_MULTIPLIER);
+            int flag_honor = sWorld->getIntConfig(CONFIG_CENTURION_BG_REWARD_HONOR_FLAG_CAP) * 3;
+            winner_honor += flag_honor;
+            winner_honor *= arenaMultiplier;
+            loser_honor *= arenaMultiplier;
+            winner_money *= arenaMultiplier;
+            loser_money *= arenaMultiplier;
         }
-        else
+
+        uint32 thrallsSocksWinner = winner_honor;
+        uint32 thrallsSocksLoser = loser_honor;
+
+        // Rewards
+        // only grant rewards if battle has lasted 15 seconds
+        if (GetStartDelayTime() <= 0 && GetStartTime() >= 15 * IN_MILLISECONDS)
         {
-            if (IsRandom() || BattlegroundMgr::IsBGWeekend(GetBgTypeID(true)))
-                UpdatePlayerScore(player, SCORE_BONUS_HONOR, GetBonusHonorFromKill(loser_kills));
+            // Reward winner team
+            if (bgTeamId == GetTeamId(winnerTeamId))
+            {
+                player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_WIN_BG, player->GetMapId());
+
+                UpdatePlayerScore(player, SCORE_BONUS_HONOR, winner_honor);
+                player->ModifyMoney(winner_money);
+                player->AddItem(40752, thrallsSocksWinner);
+
+                for (int i = 20559; i <= 20575; i++)
+                {
+                    Item* depletedMark = player->GetItemByEntry(i);
+                    if (depletedMark)
+                    {
+                        if (player->CanUseItem(depletedMark->GetTemplate()) == EQUIP_ERR_OK)
+                        {
+                            player->RemoveItem(depletedMark->GetBagSlot(), depletedMark->GetSlot(), true); //remove old one
+                            player->AddItem(20558, 1); //restored mark of honor
+                        }
+                    }
+                }
+            }
+            else
+            {
+                player->ModifyHonorPoints(loser_honor);
+                player->ModifyMoney(loser_money);
+                player->AddItem(40752, thrallsSocksLoser);
+            }
         }
 
         sScriptMgr->OnBattlegroundEndReward(this, player, GetTeamId(winnerTeamId));
@@ -1122,6 +1155,15 @@ void Battleground::AddPlayer(Player* player)
 
     sScriptMgr->OnBattlegroundBeforeAddPlayer(this, player);
 
+    uint32 team = player->GetTeamId();
+
+    player->SetFactionForRace(RACE_HUMAN);
+
+    if (team == HORDE)
+    {
+        player->SetFactionForRace(RACE_BLOODELF);
+    }
+
     // score struct must be created in inherited class
 
     ObjectGuid guid = player->GetGUID();
@@ -1139,27 +1181,28 @@ void Battleground::AddPlayer(Player* player)
     player->RemoveAurasByType(SPELL_AURA_MOUNTED);
 
     // add arena specific auras
-    if (isArena())
+    // restore pets health before remove
+    if (Pet* pet = player->GetPet())
+        if (pet->IsAlive())
+            pet->SetHealth(pet->GetMaxHealth());
+
+    player->RemoveArenaEnchantments(TEMP_ENCHANTMENT_SLOT);
+    player->DestroyConjuredItems(true);
+    player->UnsummonPetTemporaryIfAny();
+
+    if (GetStatus() == STATUS_WAIT_JOIN)
     {
-        // restore pets health before remove
-        if (Pet* pet = player->GetPet())
-            if (pet->IsAlive())
-                pet->SetHealth(pet->GetMaxHealth());
-
-        player->RemoveArenaEnchantments(TEMP_ENCHANTMENT_SLOT);
-        player->DestroyConjuredItems(true);
-        player->UnsummonPetTemporaryIfAny();
-
-        if (GetStatus() == STATUS_WAIT_JOIN)                 // not started yet
+        if (isArena())
         {
             player->CastSpell(player, SPELL_ARENA_PREPARATION, true);
+            player->CastSpell(player, SPELL_INSTANT_CAST, true);
             player->ResetAllPowers();
         }
-    }
-    else
-    {
-        if (GetStatus() == STATUS_WAIT_JOIN)                 // not started yet
+        else
+        {
             player->CastSpell(player, SPELL_PREPARATION, true);   // reduces all mana cost of spells.
+            player->CastSpell(player, SPELL_INSTANT_CAST, true);   // reduces all mana cost of spells.
+        }
     }
 
     // Xinef: reset all map criterias on map enter

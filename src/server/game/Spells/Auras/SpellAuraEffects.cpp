@@ -1959,7 +1959,6 @@ void AuraEffect::HandleAuraModShapeshift(AuraApplication const* aurApp, uint8 mo
 
         if (PowerType != POWER_MANA)
         {
-            uint32 oldPower = target->GetPower(PowerType);
             // reset power to default values only at power change
             if (target->getPowerType() != PowerType)
                 target->setPowerType(PowerType);
@@ -1979,9 +1978,13 @@ void AuraEffect::HandleAuraModShapeshift(AuraApplication const* aurApp, uint8 mo
                         {
                             case FORM_CAT:
                                 {
-                                    int32 basePoints = int32(std::min(oldPower, FurorChance));
+                                    int32 energy = std::min<int32>(40, FurorChance);
+                                    if (target->GetAura(17768))
+                                    {
+                                        energy += 20;
+                                    }
                                     target->SetPower(POWER_ENERGY, 0);
-                                    target->CastCustomSpell(target, 17099, &basePoints, nullptr, nullptr, true, nullptr, this);
+                                    target->CastCustomSpell(target, 17099, &energy, nullptr, nullptr, true, nullptr, this);
                                     break;
                                 }
                             case FORM_BEAR:
@@ -6252,7 +6255,9 @@ void AuraEffect::HandlePeriodicDummyAuraTick(Unit* target, Unit* caster) const
                                 break;
                             int32 mod = (rage < 100) ? rage : 100;
                             int32 points = target->CalculateSpellDamage(target, GetSpellInfo(), 1);
-                            int32 regen = target->GetMaxHealth() * (mod * points / 10) / 1000;
+                            //every 100 rage, heal for 200. it's usually 20 per rage point (so 20 health per 1 rage or 200 per 10) but rage is stored internally here with an extra digit. 10 rage comes in as 100 (awful).
+                            //regen variable is how much to heal per 10 rage (happy case) here.
+                            int32 const regen = ((200 * mod) / 100.f);
                             target->CastCustomSpell(target, 22845, &regen, 0, 0, true, 0, this);
                             target->SetPower(POWER_RAGE, rage - mod);
                             break;
@@ -6735,11 +6740,6 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
             // 5..8 ticks have normal tick damage
         }
     }
-
-    // calculate crit chance
-    bool crit = false;
-    if ((crit = roll_chance_f(GetCritChance())))
-        damage = Unit::SpellCriticalDamageBonus(caster, m_spellInfo, damage, target);
 
     // Auras reducing damage from AOE spells
     if (GetSpellInfo()->Effects[GetEffIndex()].IsAreaAuraEffect() || GetSpellInfo()->Effects[GetEffIndex()].IsTargetingArea() || GetSpellInfo()->Effects[GetEffIndex()].Effect == SPELL_EFFECT_PERSISTENT_AREA_AURA) // some persistent area auras have targets like A=53 B=28

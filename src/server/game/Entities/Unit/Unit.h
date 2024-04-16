@@ -714,11 +714,11 @@ namespace Movement
 
 enum DiminishingLevels
 {
-    DIMINISHING_LEVEL_1             = 0,
-    DIMINISHING_LEVEL_2             = 1,
-    DIMINISHING_LEVEL_3             = 2,
+    DIMINISHING_LEVEL_0             = 0,
+    DIMINISHING_LEVEL_1             = 1,
+    DIMINISHING_LEVEL_2             = 2,
     DIMINISHING_LEVEL_IMMUNE        = 3,
-    DIMINISHING_LEVEL_4             = 3,
+    DIMINISHING_LEVEL_3             = 3,
     DIMINISHING_LEVEL_TAUNT_IMMUNE  = 4,
 };
 
@@ -2155,6 +2155,7 @@ public:
     float GetTotalAttackPowerValue(WeaponAttackType attType, Unit* pVictim = nullptr) const;
     [[nodiscard]] float GetWeaponDamageRange(WeaponAttackType attType, WeaponDamageRange type, uint8 damageIndex = 0) const;
     void SetBaseWeaponDamage(WeaponAttackType attType, WeaponDamageRange damageRange, float value, uint8 damageIndex = 0) { m_weaponDamage[attType][damageRange][damageIndex] = value; }
+    float GetBaseWeaponDamage(WeaponAttackType attType, WeaponDamageRange damageRange, uint8 damageIndex = 0) { return m_weaponDamage[attType][damageRange][damageIndex]; }
     virtual void CalculateMinMaxDamage(WeaponAttackType attType, bool normalized, bool addTotalPct, float& minDamage, float& maxDamage, uint8 damageIndex = 0) = 0;
     uint32 CalculateDamage(WeaponAttackType attType, bool normalized, bool addTotalPct, uint8 itemDamagesMask = 0);
     float GetAPMultiplier(WeaponAttackType attType, bool normalized);

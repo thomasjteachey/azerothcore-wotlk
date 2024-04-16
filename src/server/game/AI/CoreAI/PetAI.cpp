@@ -557,6 +557,10 @@ void PetAI::HandleReturnMovement()
             {
                 ClearCharmInfoFlags();
                 me->GetCharmInfo()->SetIsReturning(true);
+                me->GetCharmInfo()->SetIsCommandAttack(false);
+                me->GetCharmInfo()->SetIsCommandFollow(true);
+                me->GetCharmInfo()->SetIsAtStay(false);
+                me->GetCharmInfo()->SetIsFollowing(false);
                 me->GetMotionMaster()->Clear();
                 me->GetMotionMaster()->MoveFollow(me->GetCharmerOrOwner(), PET_FOLLOW_DIST, me->GetFollowAngle());
             }
@@ -614,7 +618,7 @@ void PetAI::DoAttack(Unit* target, bool chase)
             {
                 float angle = combatRange == 0.f && target->GetTypeId() != TYPEID_PLAYER && !target->IsPet() ? float(M_PI) : 0.f;
                 float tolerance = combatRange == 0.f ? float(M_PI_4) : float(M_PI * 2);
-                me->GetMotionMaster()->MoveChase(target, ChaseRange(0.f, combatRange), ChaseAngle(angle, tolerance));
+                me->GetMotionMaster()->MoveChase(target, ChaseRange(0.f, combatRange));
             }
         }
         else // (Stay && ((Aggressive || Defensive) && In Melee Range)))
