@@ -1439,12 +1439,12 @@ void World::LoadConfigSettings(bool reload)
     _int_configs[CONFIG_BG_REWARD_LOSER_HONOR_FIRST]  = sConfigMgr->GetOption<int32>("Battleground.RewardLoserHonorFirst", 5);
     _int_configs[CONFIG_BG_REWARD_LOSER_HONOR_LAST]   = sConfigMgr->GetOption<int32>("Battleground.RewardLoserHonorLast", 5);
 
-    m_int_configs[CONFIG_CENTURION_BG_REWARD_HONOR_WINNER] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardHonorWinner", 100);
-    m_int_configs[CONFIG_CENTURION_BG_REWARD_HONOR_LOSER] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardHonorLoser", 10);
-    m_int_configs[CONFIG_CENTURION_BG_REWARD_MONEY_WINNER] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardMoneyWinner", 100000);
-    m_int_configs[CONFIG_CENTURION_BG_REWARD_MONEY_LOSER] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardMoneyLoser", 100000);
-    m_int_configs[CONFIG_CENTURION_BG_REWARD_HONOR_FLAG_CAP] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardHonorFlagCap", 10);
-    m_float_configs[CONFIG_CENTURION_BG_ARENA_REWARD_MULTIPLIER] = sConfigMgr->GetFloatDefault("Centurion.Battleground.ArenaRewardMultiplier", .2f);
+    _int_configs[CONFIG_CENTURION_BG_REWARD_HONOR_WINNER] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardHonorWinner", 100);
+    _int_configs[CONFIG_CENTURION_BG_REWARD_HONOR_LOSER] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardHonorLoser", 10);
+    _int_configs[CONFIG_CENTURION_BG_REWARD_MONEY_WINNER] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardMoneyWinner", 100000);
+    _int_configs[CONFIG_CENTURION_BG_REWARD_MONEY_LOSER] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardMoneyLoser", 100000);
+    _int_configs[CONFIG_CENTURION_BG_REWARD_HONOR_FLAG_CAP] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardHonorFlagCap", 10);
+    _float_configs[CONFIG_CENTURION_BG_ARENA_REWARD_MULTIPLIER] = sConfigMgr->GetFloatDefault("Centurion.Battleground.ArenaRewardMultiplier", .2f);
 
     _int_configs[CONFIG_WAYPOINT_MOVEMENT_STOP_TIME_FOR_PLAYER] = sConfigMgr->GetOption<int32>("WaypointMovementStopTimeForPlayer", 120);
 
@@ -1672,9 +1672,6 @@ void World::SetInitialWorldSettings()
 
     LOG_INFO("server.loading", "Loading Spell Learn Skills...");
     sSpellMgr->LoadSpellLearnSkills();                           // must be after LoadSpellRanks
-
-    LOG_INFO("server.loading", "Loading Spell Proc Event Conditions...");
-    sSpellMgr->LoadSpellProcEvents();
 
     LOG_INFO("server.loading", "Loading Spell Proc Conditions and Data...");
     sSpellMgr->LoadSpellProcs();

@@ -6749,6 +6749,7 @@ void AuraEffect::HandlePeriodicDamageAurasTick(Unit* target, Unit* caster) const
 
     int32 dmg = damage;
     int32 mitigatedDamage = cleanDamage.mitigated_damage;
+    float crit = 0;
     if (CanApplyResilience())
     {
         int32 resilienceReduction = dmg;

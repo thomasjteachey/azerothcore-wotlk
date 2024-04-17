@@ -5022,7 +5022,7 @@ float Player::GetMeleeCritFromAgility()
 void Player::GetDodgeFromAgility(float& diminishing, float& nondiminishing)
 {
     uint8 level = GetLevel();
-    uint32 pclass = GetClass();
+    uint32 pclass = getClass();
 
     // Table for base dodge values
     const float dodge_base[MAX_CLASSES] =

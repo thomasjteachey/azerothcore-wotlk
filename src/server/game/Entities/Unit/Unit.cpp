@@ -3931,6 +3931,8 @@ void Unit::_UpdateAutoRepeatSpell()
             {
                 InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
             }
+            else if (GetTypeId() == TYPEID_PLAYER)
+                Spell::SendCastResult(ToPlayer(), spellProto, 1, result);
 
             return;
         }
@@ -4518,7 +4520,7 @@ void Unit::_ApplyAura(AuraApplication* aurApp, uint8 effMask)
     // apply effects of the aura
     for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
     {
-        bool frostTrapStart = i == 0 && aurApp->GetBase()->m_spellInfo->Id == 13810;
+        bool frostTrapStart = i == 0 && aurApp->GetBase()->GetSpellInfo()->Id == 13810;
         if (frostTrapStart || (effMask & 1 << i && (!aurApp->GetRemoveMode())))
             aurApp->_HandleEffect(i, true);
     }
