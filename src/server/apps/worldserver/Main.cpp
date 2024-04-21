@@ -625,6 +625,7 @@ void SignalHandler(boost::system::error_code const& error, int /*signalNumber*/)
 
 void FreezeDetector::Handler(std::weak_ptr<FreezeDetector> freezeDetectorRef, boost::system::error_code const& error)
 {
+    /*
     if (!error)
     {
         if (std::shared_ptr<FreezeDetector> freezeDetector = freezeDetectorRef.lock())
@@ -652,6 +653,7 @@ void FreezeDetector::Handler(std::weak_ptr<FreezeDetector> freezeDetectorRef, bo
             freezeDetector->_timer.async_wait(std::bind(&FreezeDetector::Handler, freezeDetectorRef, std::placeholders::_1));
         }
     }
+    */
 }
 
 AsyncAcceptor* StartRaSocketAcceptor(Acore::Asio::IoContext& ioContext)
