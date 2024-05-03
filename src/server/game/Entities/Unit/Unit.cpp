@@ -9109,7 +9109,7 @@ uint32 Unit::SpellHealingBonusDone(Unit* victim, SpellInfo const* spellProto, ui
     float coeff = spellProto->Effects[effIndex].BonusMultiplier;
 
     //blessing of light fix
-    Aura* blessingOfLight = owner->GetAuraOfRankedSpell(19977);
+    Aura* blessingOfLight = victim->GetAuraOfRankedSpell(19977);
     if (blessingOfLight)
     {
         //flash of light
@@ -10282,12 +10282,13 @@ void Unit::CombatStart(Unit* victim, bool initialAggro)
             }
 
             // if unit has an owner, put owner in combat.
+            /*
             if (Unit* victimOwner = victim->GetOwner())
             {
                 if (!(victimOwner->IsInCombatWith(this)))
                 {
-                    /* warding off to not take over aggro for no reason
-                    Using only AddThreat causes delay in attack */
+                    //warding off to not take over aggro for no reason
+                    //Using only AddThreat causes delay in attack
                     if (!victimOwner->IsInCombat() && victimOwner->IsAIEnabled)
                     {
                         victimOwner->ToCreature()->AI()->AttackStart(this);
@@ -10297,6 +10298,7 @@ void Unit::CombatStart(Unit* victim, bool initialAggro)
                     victimOwner->AddThreat(this, 0.0f);
                 }
             }
+            */
         }
 
         bool alreadyInCombat = IsInCombat();
@@ -10305,6 +10307,7 @@ void Unit::CombatStart(Unit* victim, bool initialAggro)
         victim->SetInCombatWith(this);
 
         // Xinef: If pet started combat - put owner in combat
+        /*
         if (!alreadyInCombat && IsInCombat())
         {
             if (Unit* owner = GetOwner())
@@ -10313,6 +10316,7 @@ void Unit::CombatStart(Unit* victim, bool initialAggro)
                 victim->SetInCombatWith(owner);
             }
         }
+        */
     }
 
     Unit* who = victim->GetCharmerOrOwnerOrSelf();
@@ -10338,8 +10342,10 @@ void Unit::CombatStartOnCast(Unit* target, bool initialAggro, uint32 duration)
         SetInCombatWith(target, duration);
 
         // Xinef: If pet started combat - put owner in combat
+        /*
         if (Unit* owner = GetOwner())
             owner->SetInCombatWith(target, duration);
+        */
     }
 
     Unit* who = target->GetCharmerOrOwnerOrSelf();

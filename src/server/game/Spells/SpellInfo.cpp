@@ -1583,7 +1583,7 @@ bool SpellInfo::IsStrongerAuraActive(Unit const* caster, Unit const* target) con
 {
     if (!target)
         return false;
-
+    
     // xinef: check spell group
     uint32 groupId = sSpellMgr->GetSpellGroup(Id);
     if (!groupId)
@@ -1601,10 +1601,6 @@ bool SpellInfo::IsStrongerAuraActive(Unit const* caster, Unit const* target) con
 
         // xinef: if non-aura effect is preset - return false
         if (!Effects[i].IsAura())
-            return false;
-
-        // xinef: aura is periodic - return false
-        if (Effects[i].Amplitude)
             return false;
 
         // xinef: exclude dummy auras
@@ -1657,6 +1653,11 @@ bool SpellInfo::IsStrongerAuraActive(Unit const* caster, Unit const* target) con
 
             // xinef: assume that all spells are either positive or negative, otherwise they should not be in one group
             // xinef: take custom values into account
+
+            if (aurApp->GetBase()->GetSpellInfo()->GetRank() == GetRank())
+            {
+                continue;
+            }
 
             int32 basePoints = Effects[i].BasePoints;
             int32 duration = GetMaxDuration();
@@ -2219,10 +2220,11 @@ SpellSpecificType SpellInfo::LoadSpellSpecific() const
                     return SPELL_SPECIFIC_CURSE;
 
                 // Warlock (Demon Armor | Demon Skin | Fel Armor)
-                if (SpellFamilyFlags[1] & 0x20000020 || SpellFamilyFlags[2] & 0x00000010
+                if ((SpellFamilyFlags[1] & 0x20000020) || (SpellFamilyFlags[2] & 0x00000010)
                     || Id == 687 || Id == 696
                     || Id == 11735 || Id == 706 || Id == 1086 || Id == 11733 || Id == 11734
                     )
+                    return SPELL_SPECIFIC_WARLOCK_ARMOR;
 
                 //seed of corruption and corruption
                 if (SpellFamilyFlags[1] & 0x10 || SpellFamilyFlags[0] & 0x2)

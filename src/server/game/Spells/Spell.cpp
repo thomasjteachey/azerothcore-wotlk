@@ -2925,16 +2925,18 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
     {
         if (missInfo != SPELL_MISS_EVADE && !m_caster->IsFriendlyTo(effectUnit) && (!m_spellInfo->IsPositive() || m_spellInfo->HasEffect(SPELL_EFFECT_DISPEL)))
         {
-            m_caster->CombatStart(effectUnit, !(m_spellInfo->AttributesEx3 & SPELL_ATTR3_SUPRESS_TARGET_PROCS));
-
-            // Patch 3.0.8: All player spells which cause a creature to become aggressive to you will now also immediately cause the creature to be tapped.
-            if (effectUnit->IsInCombatWith(m_caster))
+            if (!(m_spellInfo->AttributesEx & SPELL_ATTR1_NO_THREAT))
             {
-                if (Creature* creature = effectUnit->ToCreature())
+                // Patch 3.0.8: All player spells which cause a creature to become aggressive to you will now also immediately cause the creature to be tapped.
+                m_caster->CombatStart(effectUnit, !(m_spellInfo->AttributesEx3& SPELL_ATTR3_SUPRESS_TARGET_PROCS));
+                if (effectUnit->IsInCombatWith(m_caster))
                 {
-                    if (!creature->hasLootRecipient() && m_caster->IsPlayer())
+                    if (Creature* creature = effectUnit->ToCreature())
                     {
-                        creature->SetLootRecipient(m_caster);
+                        if (!creature->hasLootRecipient() && m_caster->IsPlayer())
+                        {
+                            creature->SetLootRecipient(m_caster);
+                        }
                     }
                 }
             }
@@ -2955,11 +2957,7 @@ void Spell::DoAllEffectOnTarget(TargetInfo* target)
     if (missInfo != SPELL_MISS_EVADE && effectUnit != m_caster && m_caster->IsFriendlyTo(effectUnit) && m_spellInfo->IsPositive() &&
         effectUnit->IsInCombat() && !m_spellInfo->HasAttribute(SPELL_ATTR1_NO_THREAT))
     {
-        if (m_spellInfo->Id != 14309 && m_spellInfo->Id != 14308 && m_spellInfo->Id != 3355 && m_spellInfo->Id != 13810 && m_spellInfo->Id != 63487 && m_spellInfo->Id != 67035
-            && m_spellInfo->Id != 72216 && m_spellInfo->Id != 19185 && m_spellInfo->Id != 3600) //freezing/frost traps don't put you in combat
-        {
-            m_caster->SetInCombatWith(effectUnit);
-        }
+        m_caster->SetInCombatWith(effectUnit);
     }
 
     // Check for SPELL_ATTR7_CAN_CAUSE_INTERRUPT
