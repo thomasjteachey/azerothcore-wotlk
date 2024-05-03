@@ -1155,15 +1155,6 @@ void Battleground::AddPlayer(Player* player)
 
     sScriptMgr->OnBattlegroundBeforeAddPlayer(this, player);
 
-    uint32 team = player->GetTeamId();
-
-    player->SetFactionForRace(RACE_HUMAN);
-
-    if (team == HORDE)
-    {
-        player->SetFactionForRace(RACE_BLOODELF);
-    }
-
     // score struct must be created in inherited class
 
     ObjectGuid guid = player->GetGUID();

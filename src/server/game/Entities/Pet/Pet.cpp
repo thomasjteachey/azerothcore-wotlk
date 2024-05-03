@@ -845,7 +845,7 @@ void Pet::Update(uint32 diff)
                     m_happinessTimer -= diff;
                     if (m_happinessTimer <= int32(0))
                     {
-                        LoseHappiness();
+                        SetMaxHappiness();
                         m_happinessTimer += PET_LOSE_HAPPINES_INTERVAL;
                     }
                 }
@@ -859,7 +859,7 @@ void Pet::Update(uint32 diff)
     Creature::Update(diff);
 }
 
-void Pet::LoseHappiness()
+void Pet::SetMaxHappiness()
 {
     uint32 curValue = GetPower(POWER_HAPPINESS);
     if (curValue <= 0)
@@ -867,7 +867,8 @@ void Pet::LoseHappiness()
     int32 addvalue = 670;                                   //value is 70/35/17/8/4 (per min) * 1000 / 8 (timer 7.5 secs)
     if (IsInCombat())                                        //we know in combat happiness fades faster, multiplier guess
         addvalue = int32(addvalue * 1.5f);
-    ModifyPower(POWER_HAPPINESS, -addvalue);
+    SetPower(POWER_HAPPINESS, GetMaxPower(POWER_HAPPINESS));
+    //ModifyPower(POWER_HAPPINESS, -addvalue);
 }
 
 HappinessState Pet::GetHappinessState()

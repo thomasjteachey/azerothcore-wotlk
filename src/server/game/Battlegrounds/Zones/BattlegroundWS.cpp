@@ -57,8 +57,8 @@ void BattlegroundWS::PostUpdateImpl(uint32 diff)
         switch (_bgEvents.ExecuteEvent())
         {
             case BG_WS_EVENT_UPDATE_GAME_TIME:
-                UpdateWorldState(BG_WS_STATE_TIMER, GetMatchTime());
-                _bgEvents.ScheduleEvent(BG_WS_EVENT_UPDATE_GAME_TIME, ((BG_WS_TOTAL_GAME_TIME - GetStartTime()) % (MINUTE * IN_MILLISECONDS)) + 1);
+                //UpdateWorldState(BG_WS_STATE_TIMER, GetMatchTime());
+                //_bgEvents.ScheduleEvent(BG_WS_EVENT_UPDATE_GAME_TIME, ((BG_WS_TOTAL_GAME_TIME - GetStartTime()) % (MINUTE * IN_MILLISECONDS)) + 1);
                 break;
             case BG_WS_EVENT_RESPAWN_BOTH_FLAGS:
                 SpawnBGObject(BG_WS_OBJECT_H_FLAG, RESPAWN_IMMEDIATELY);
@@ -107,7 +107,7 @@ void BattlegroundWS::StartingEventOpenDoors()
     SpawnBGObject(BG_WS_OBJECT_DOOR_H_4, RESPAWN_ONE_DAY);
 
     StartTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, WS_EVENT_START_BATTLE);
-    UpdateWorldState(BG_WS_STATE_TIMER_ACTIVE, 1);
+    //UpdateWorldState(BG_WS_STATE_TIMER_ACTIVE, 1);
     _bgEvents.ScheduleEvent(BG_WS_EVENT_UPDATE_GAME_TIME, 0);
     _bgEvents.ScheduleEvent(BG_WS_EVENT_DESPAWN_DOORS, BG_WS_DOOR_DESPAWN_TIME);
 }

@@ -1946,6 +1946,19 @@ void GameObject::Use(Unit* user)
 
                     player->RemoveAurasByType(SPELL_AURA_MOD_STEALTH);
                     player->RemoveAurasByType(SPELL_AURA_MOD_INVISIBILITY);
+                    switch (player->GetShapeshiftForm())
+                    {
+                    case FORM_CAT:
+                    case FORM_BEAR:
+                    case FORM_DIREBEAR:
+                    case FORM_MOONKIN:
+                    case FORM_TRAVEL:
+                    case FORM_GHOSTWOLF:
+                        player->RemoveAurasByType(SPELL_AURA_MOD_SHAPESHIFT);
+                        break;
+                    default:
+                        break;
+                    }
                     // BG flag click
                     // AB:
                     // 15001
@@ -1990,6 +2003,19 @@ void GameObject::Use(Unit* user)
 
                     player->RemoveAurasByType(SPELL_AURA_MOD_STEALTH);
                     player->RemoveAurasByType(SPELL_AURA_MOD_INVISIBILITY);
+                    switch (player->GetShapeshiftForm())
+                    {
+                    case FORM_CAT:
+                    case FORM_BEAR:
+                    case FORM_DIREBEAR:
+                    case FORM_MOONKIN:
+                    case FORM_TRAVEL:
+                    case FORM_GHOSTWOLF:
+                        player->RemoveAurasByType(SPELL_AURA_MOD_SHAPESHIFT);
+                        break;
+                    default:
+                        break;
+                    }
                     // BG flag dropped
                     // WS:
                     // 179785 - Silverwing Flag
