@@ -29,7 +29,7 @@
 enum PriestSpells
 {
     SPELL_PRIEST_GLYPH_OF_SHADOWFIEND       = 58228,
-    SPELL_PRIEST_GLYPH_OF_SHADOWFIEND_MANA  = 58227,
+    SPELL_PRIEST_SHADOWFIEND_DEATH          = 57989,
     SPELL_PRIEST_SHADOWFIEND_DODGE          = 8273,
     SPELL_PRIEST_LIGHTWELL_CHARGES          = 59907
 };
@@ -40,12 +40,15 @@ struct npc_pet_pri_lightwell : public TotemAI
 
     void InitializeAI() override
     {
-        if (Unit* owner = me->ToTempSummon()->GetSummonerUnit())
+        if (TempSummon* tempSummon = me->ToTempSummon())
         {
-            uint32 hp = uint32(owner->GetMaxHealth() * 0.3f);
-            me->SetMaxHealth(hp);
-            me->SetHealth(hp);
-            me->SetLevel(owner->GetLevel());
+            if (Unit* owner = tempSummon->GetSummonerUnit())
+            {
+                uint32 hp = uint32(owner->GetMaxHealth() * 0.3f);
+                me->SetMaxHealth(hp);
+                me->SetHealth(hp);
+                me->SetLevel(owner->GetLevel());
+            }
         }
 
         me->CastSpell(me, SPELL_PRIEST_LIGHTWELL_CHARGES, false); // Spell for Lightwell Charges
@@ -67,12 +70,11 @@ struct npc_pet_pri_shadowfiend : public PetAI
             AttackStart(target);
     }
 
-    void JustDied(Unit* /*killer*/) override
+    void IsSummonedBy(WorldObject* summoner) override
     {
-        if (me->IsSummon())
-            if (Unit* owner = me->ToTempSummon()->GetSummonerUnit())
-                if (owner->HasAura(SPELL_PRIEST_GLYPH_OF_SHADOWFIEND))
-                    owner->CastSpell(owner, SPELL_PRIEST_GLYPH_OF_SHADOWFIEND_MANA, true);
+        if (Unit* unit = summoner->ToUnit())
+            if (unit->HasAura(SPELL_PRIEST_GLYPH_OF_SHADOWFIEND))
+                DoCastAOE(SPELL_PRIEST_SHADOWFIEND_DEATH);
     }
 };
 

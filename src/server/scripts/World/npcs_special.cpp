@@ -343,7 +343,7 @@ public:
         void Reset() override
         {
             me->CastSpell(me, SPELL_STUN_PERMANENT, true);
-            resetTimer = 5000;
+            resetTimer = 6000;
         }
 
         void EnterEvadeMode(EvadeReason why) override
@@ -356,7 +356,7 @@ public:
 
         void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
         {
-            resetTimer = 5000;
+            resetTimer = 6000;
             damage = 0;
         }
 
@@ -368,7 +368,7 @@ public:
             if (resetTimer <= diff)
             {
                 EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
-                resetTimer = 5000;
+                resetTimer = 6000;
             }
             else
                 resetTimer -= diff;

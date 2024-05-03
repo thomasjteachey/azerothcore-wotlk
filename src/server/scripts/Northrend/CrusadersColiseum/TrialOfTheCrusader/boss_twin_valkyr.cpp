@@ -36,10 +36,9 @@ enum Yells
     EMOTE_VORTEX            = 3,
     EMOTE_TWINK_PACT        = 4,
     SAY_TWINK_PACT          = 5,
-    SAY_KILL_PLAYER_1       = 6,
+    SAY_KILL_PLAYER         = 6,
     SAY_BERSERK             = 7,
     SAY_DEATH               = 8,
-    SAY_KILL_PLAYER_2       = 9,
 };
 
 enum Equipment
@@ -502,10 +501,9 @@ struct boss_twin_valkyrAI : public ScriptedAI
     {
         if( who->GetTypeId() == TYPEID_PLAYER )
         {
-            int32 id = urand(0, 1) ? SAY_KILL_PLAYER_1 : SAY_KILL_PLAYER_2;
-            Talk(id);
+            Talk(SAY_KILL_PLAYER);
             if( Creature* twin = GetSister() )
-                twin->AI()->Talk(id);
+                twin->AI()->Talk(SAY_KILL_PLAYER);
         }
     }
 
@@ -856,8 +854,7 @@ public:
                                 Unit::ApplyResilience(plr, nullptr, &dmg, false, CR_CRIT_TAKEN_SPELL);
                             resilienceReduction = damage - resilienceReduction;
                             damage -= resilienceReduction;
-                            uint32 mitigated_damage = resilienceReduction;
-                            DamageInfo dmgInfo(caster, plr, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, mitigated_damage);
+                            DamageInfo dmgInfo(caster, plr, damage, GetSpellInfo(), GetSpellInfo()->GetSchoolMask(), DOT, BASE_ATTACK);
                             Unit::CalcAbsorbResist(dmgInfo);
                             Unit::DealDamageMods(plr, damage, &absorb);
                             int32 overkill = damage - plr->GetHealth();
