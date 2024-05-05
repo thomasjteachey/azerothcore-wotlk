@@ -478,12 +478,14 @@ void BattlegroundWS::Init()
 
 void BattlegroundWS::EndBattleground(TeamId winnerTeamId)
 {
+    /*
     // Win reward
     RewardHonorToTeam(GetBonusHonorFromKill(_honorWinKills), winnerTeamId);
 
     // Complete map_end rewards (even if no team wins)
     RewardHonorToTeam(GetBonusHonorFromKill(_honorEndKills), TEAM_ALLIANCE);
     RewardHonorToTeam(GetBonusHonorFromKill(_honorEndKills), TEAM_HORDE);
+    */
 
     Battleground::EndBattleground(winnerTeamId);
 }

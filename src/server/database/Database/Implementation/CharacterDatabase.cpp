@@ -611,7 +611,7 @@ void CharacterDatabaseConnection::DoPrepareStatements()
     PrepareStatement(CHAR_SANITIZE_INSTANCE_SAVED_DATA, "DELETE FROM instance_saved_go_state_data WHERE id NOT IN (SELECT instance.id FROM instance)", CONNECTION_ASYNC);
 
     // Replay
-    PrepareStatement(CHAR_INS_BG_REPLAYS, "INSERT INTO character_bg_replays (arenaTypeId, typeId, contentSize, contents, mapId) VALUES (?, ?, ?, ?, ?)", CONNECTION_ASYNC);
+    PrepareStatement(CHAR_INS_ARENA_REPLAYS, "INSERT INTO character_arena_replays (arenaTypeId, typeId, contentSize, contents, mapId) VALUES (?, ?, ?, ?, ?)", CONNECTION_ASYNC);
 }
 
 CharacterDatabaseConnection::CharacterDatabaseConnection(MySQLConnectionInfo& connInfo) : MySQLConnection(connInfo)

@@ -24,7 +24,6 @@
 #include "SpellAuraEffects.h"
 #include "SpellAuras.h"
 #include "Types.h"
-#include "World.h"
 
 bool ArenaSpectator::HandleSpectatorSpectateCommand(ChatHandler* handler, std::string const& name)
 {
@@ -92,8 +91,10 @@ bool ArenaSpectator::HandleSpectatorSpectateCommand(ChatHandler* handler, std::s
     if (player->InBattlegroundQueue())
         errors.push_back("Can't be queued for arena or bg.");
 
+    /*
     if (player->GetGroup())
         errors.push_back("Can't be in a group.");
+        */
 
     if (player->HasUnitState(UNIT_STATE_ISOLATED))
         errors.push_back("Can't be isolated.");
@@ -105,7 +106,9 @@ bool ArenaSpectator::HandleSpectatorSpectateCommand(ChatHandler* handler, std::s
         errors.push_back("Can't be in flight.");
 
     if (player->IsMounted())
-        errors.push_back("Dismount before spectating.");
+    {
+        player->Dismount();
+    }
 
     if (!player->IsAlive())
         errors.push_back("Must be alive.");
@@ -205,7 +208,11 @@ bool ArenaSpectator::HandleSpectatorWatchCommand(ChatHandler* handler, std::stri
         return true;
 
     if (player->HaveAtClient(spectate))
+    {
+        player->TeleportTo(spectate->GetWorldLocation());
+        player->SetModelVisible(false);
         player->CastSpell(spectate, SPECTATOR_SPELL_BINDSIGHT, true);
+    }
 
     return true;
 }
@@ -226,6 +233,7 @@ void ArenaSpectator::CreatePacket(WorldPacket& data, std::string const& message)
 
 void ArenaSpectator::HandleResetCommand(Player* player)
 {
+    player->SetModelVisible(true);
     if (!player->FindMap() || !player->IsInWorld() || !player->FindMap()->IsBattleArena())
         return;
 
@@ -240,6 +248,7 @@ void ArenaSpectator::HandleResetCommand(Player* player)
             continue;
 
         Player* plr = itr->second;
+        player->TeleportTo(plr->GetWorldLocation());
         player->AddReceivedSpectatorResetFor(itr->first);
 
         SendCommand_String(player, itr->first, "NME", plr->GetName().c_str());

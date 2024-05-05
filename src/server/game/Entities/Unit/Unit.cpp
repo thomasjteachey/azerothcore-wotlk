@@ -3911,6 +3911,13 @@ void Unit::_UpdateAutoRepeatSpell()
 
     static uint32 const HUNTER_AUTOSHOOT = 75;
 
+    Unit* target = m_currentSpells[CURRENT_AUTOREPEAT_SPELL]->m_targets.GetUnitTarget();
+    if (!GetTarget() || (target && GetTarget() && target->GetGUID().GetCounter() != GetTarget().GetCounter()))
+    {
+        InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
+        return;
+    }
+
     // Check "realtime" interrupts
     if ((GetTypeId() == TYPEID_PLAYER && ToPlayer()->isMoving() && spellProto->Id != HUNTER_AUTOSHOOT) || IsNonMeleeSpellCast(false, false, true, spellProto->Id == HUNTER_AUTOSHOOT))
     {
@@ -13851,7 +13858,7 @@ Pet* Unit::CreateTamedPetFrom(Creature* creatureTarget, uint32 spell_id)
         return nullptr;
     }
 
-    uint8 level = creatureTarget->GetLevel() + 5 < GetLevel() ? (GetLevel() - 5) : creatureTarget->GetLevel();
+    uint8 level = GetLevel();
 
     if (!InitTamedPet(pet, level, spell_id))
     {

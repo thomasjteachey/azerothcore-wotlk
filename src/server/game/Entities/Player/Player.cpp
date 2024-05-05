@@ -4867,6 +4867,10 @@ void Player::RepopAtGraveyard()
     if (ClosestGrave)
     {
         TeleportTo(ClosestGrave->Map, ClosestGrave->x, ClosestGrave->y, ClosestGrave->z, GetOrientation());
+        if (this->GetBattleground())
+        {
+
+        }
         if (isDead())                                        // not send if alive, because it used in TeleportTo()
         {
             WorldPacket data(SMSG_DEATH_RELEASE_LOC, 4 * 4); // show spirit healer position on minimap
@@ -6095,6 +6099,10 @@ bool Player::RewardHonor(Unit* uVictim, uint32 groupsize, int32 honor, bool awar
 
     honor_f *= sWorld->getRate(RATE_HONOR);
     // Back to int now
+
+    //we don't reward honor for kills in centurion
+    if (uVictim)
+        honor_f = 0;
     honor = int32(honor_f);
     // honor - for show honor points in log
     // victim_guid - for show victim name in log
@@ -6158,12 +6166,15 @@ void Player::SetHonorPoints(uint32 value)
 {
     if (value > sWorld->getIntConfig(CONFIG_MAX_HONOR_POINTS))
     {
+        //ttopper: inform player here that they went over
+        std::string honorcap = std::to_string(sWorld->getIntConfig(CONFIG_MAX_HONOR_POINTS));
+        int32 excessPoints = value - sWorld->getIntConfig(CONFIG_MAX_HONOR_POINTS);
+        sWorld->SendServerMessage(SERVER_MSG_STRING, "Hey! Looks like you just went over the honor cap of " + honorcap + ". You went over by " + std::to_string(excessPoints) + ". Just wanted to let you know :)", this);
         if (int32 copperPerPoint = sWorld->getIntConfig(CONFIG_MAX_HONOR_POINTS_MONEY_PER_POINT))
         {
             // Only convert points on login, not when awarded honor points.
             if (isBeingLoaded())
             {
-                int32 excessPoints = value - sWorld->getIntConfig(CONFIG_MAX_HONOR_POINTS);
                 ModifyMoney(excessPoints * copperPerPoint);
             }
         }
@@ -9154,7 +9165,7 @@ Pet* Player::CreatePet(Creature* creatureTarget, uint32 spellID /*= 0*/)
     creatureTarget->DespawnOrUnsummon();
 
     // calculate proper level
-    uint8 level = (creatureTarget->GetLevel() < (GetLevel() - 5)) ? (GetLevel() - 5) : GetLevel();
+    uint8 level = (GetLevel());
 
     // prepare visual effect for levelup
     pet->SetUInt32Value(UNIT_FIELD_LEVEL, level - 1);

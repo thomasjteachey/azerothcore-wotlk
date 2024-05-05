@@ -726,7 +726,7 @@ void Battleground::RewardHonorToTeam(uint32 honor, TeamId teamId)
 {
     for (BattlegroundPlayerMap::const_iterator itr = m_Players.begin(); itr != m_Players.end(); ++itr)
         if (itr->second->GetBgTeamId() == teamId)
-            UpdatePlayerScore(itr->second, SCORE_BONUS_HONOR, honor);
+            UpdatePlayerScore(itr->second, SCORE_BONUS_HONOR, honor, true);
 }
 
 void Battleground::RewardReputationToTeam(uint32 factionId, uint32 reputation, TeamId teamId)
@@ -884,8 +884,7 @@ void Battleground::EndBattleground(PvPTeamId winnerTeamId)
             if (bgTeamId == GetTeamId(winnerTeamId))
             {
                 player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_WIN_BG, player->GetMapId());
-
-                UpdatePlayerScore(player, SCORE_BONUS_HONOR, winner_honor);
+                player->RewardHonor(nullptr, 1, winner_honor);
                 player->ModifyMoney(winner_money);
                 player->AddItem(40752, thrallsSocksWinner);
 
@@ -904,7 +903,7 @@ void Battleground::EndBattleground(PvPTeamId winnerTeamId)
             }
             else
             {
-                player->ModifyHonorPoints(loser_honor);
+                player->RewardHonor(nullptr, 1, loser_honor);
                 player->ModifyMoney(loser_money);
                 player->AddItem(40752, thrallsSocksLoser);
             }
@@ -1388,7 +1387,10 @@ bool Battleground::UpdatePlayerScore(Player* player, uint32 type, uint32 value, 
     if (type == SCORE_BONUS_HONOR && doAddHonor && isBattleground())
         player->RewardHonor(nullptr, 1, value); // RewardHonor calls UpdatePlayerScore with doAddHonor = false
     else
-        itr->second->UpdateScore(type, value);
+    {
+        //don't update bonus honor
+        //itr->second->UpdateScore(type, value);
+    }
 
     return true;
 }

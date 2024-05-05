@@ -1946,6 +1946,7 @@ void Pet::InitLevelupSpellsForLevel()
 
     int32 petSpellsId = GetCreatureTemplate()->PetSpellDataId ? -(int32)GetCreatureTemplate()->PetSpellDataId : GetEntry();
 
+    //ttop check this out
     // default spells (can be not learned if pet level (as owner level decrease result for example) less first possible in normal game)
     if (PetDefaultSpellsEntry const* defSpells = sSpellMgr->GetPetDefaultSpellsEntry(petSpellsId))
     {
@@ -2243,14 +2244,45 @@ void Pet::InitTalentForLevel()
 
 uint8 Pet::GetMaxTalentPointsForLevel(uint8 level)
 {
-    uint8 points = (level >= 20) ? ((level - 16) / 4) : 0;
-    // Mod points from owner SPELL_AURA_MOD_PET_TALENT_POINTS
-    if (Unit* owner = GetOwner())
-        points += owner->GetTotalAuraModifier(SPELL_AURA_MOD_PET_TALENT_POINTS);
-
-    sScriptMgr->OnCalculateMaxTalentPointsForLevel(this, level, points);
-
-    return uint8(points * sWorld->getRate(RATE_TALENT_PET));
+    switch (GetCreatureTemplate()->family)
+    {
+        case CREATURE_FAMILY_BAT:
+            return 9;
+        case CREATURE_FAMILY_BEAR:
+            return 10;
+        case CREATURE_FAMILY_BOAR:
+            return 10;
+        case CREATURE_FAMILY_CARRION_BIRD:
+            return 8;
+        case CREATURE_FAMILY_CAT:
+            return 8;
+        case CREATURE_FAMILY_CRAB:
+            return 11;
+        case CREATURE_FAMILY_CROCOLISK:
+            return 11;
+        case CREATURE_FAMILY_GORILLA:
+            return 10;
+        case CREATURE_FAMILY_HYENA:
+            return 10;
+        case CREATURE_FAMILY_BIRD_OF_PREY:
+            return 9;
+        case CREATURE_FAMILY_RAPTOR:
+            return 10;
+        case CREATURE_FAMILY_SCORPID:
+            return 10;
+        case CREATURE_FAMILY_SPIDER:
+            return 11;
+        case CREATURE_FAMILY_TALLSTRIDER:
+            return 10;
+        case CREATURE_FAMILY_TURTLE:
+            return 10;
+        case CREATURE_FAMILY_WIND_SERPENT:
+            return 9;
+        case CREATURE_FAMILY_WOLF:
+            return 9;
+        default:
+            return 0;
+    }
 }
 
 void Pet::ToggleAutocast(SpellInfo const* spellInfo, bool apply)
@@ -2408,10 +2440,7 @@ void Pet::SynchronizeLevelWithOwner()
             break;
         // can't be greater owner level
         case HUNTER_PET:
-            if (GetLevel() > owner->GetLevel())
-                GivePetLevel(owner->GetLevel());
-            else if (GetLevel() + 5 < owner->GetLevel())
-                GivePetLevel(owner->GetLevel() - 5);
+            GivePetLevel(owner->GetLevel());
             break;
         default:
             break;

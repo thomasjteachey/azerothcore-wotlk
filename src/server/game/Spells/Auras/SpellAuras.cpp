@@ -383,8 +383,8 @@ void Aura::UpdateHeartbeatResist(uint32 diff, Unit* target)
     m_heartbeatDurationCap -= diff;
     if (m_heartbeatDurationCap <= 0)
     {
-        std::string str = "removed " + std::to_string(this->GetId())+ " due to heartbeat resist";
-        sWorld->SendServerMessage(SERVER_MSG_STRING, str.c_str());
+        //std::string str = "removed " + std::to_string(this->GetId())+ " due to heartbeat resist";
+        //sWorld->SendServerMessage(SERVER_MSG_STRING, str.c_str());
         target->RemoveAura(this, AURA_REMOVE_BY_CANCEL);
     }
 }
