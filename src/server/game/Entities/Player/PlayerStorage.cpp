@@ -7558,7 +7558,7 @@ void Player::_SaveDailyQuestStatus(CharacterDatabaseTransaction trans)
             stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CHARACTER_DAILYQUESTSTATUS);
             stmt->SetData(0, GetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx));
             stmt->SetData(1, uint64(m_lastDailyQuestTime));
-            stmt->SetData(2, GetGUID().GetCounter());
+            stmt->SetData(2, GetSession()->GetAccountId());
             trans->Append(stmt);
         }
     }
