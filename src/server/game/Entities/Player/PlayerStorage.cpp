@@ -6402,8 +6402,10 @@ void Player::_LoadDailyQuestStatus(PreparedQueryResult result)
             m_lastDailyQuestTime = time_t(fields[1].Get<uint32>());
 
             Quest const* quest = sObjectMgr->GetQuestTemplate(quest_id);
+            
             if (!quest)
                 continue;
+                
 
             SetUInt32Value(PLAYER_FIELD_DAILY_QUESTS_1 + quest_daily_idx, quest_id);
             ++quest_daily_idx;
