@@ -531,7 +531,7 @@ void BattlegroundWS::FillInitialWorldStates(WorldPacket& data)
     data << uint32(BG_WS_FLAG_CAPTURES_HORDE) << uint32(GetTeamScore(TEAM_HORDE));
     data << uint32(BG_WS_FLAG_CAPTURES_MAX) << uint32(BG_WS_MAX_TEAM_SCORE);
 
-    data << uint32(BG_WS_STATE_TIMER_ACTIVE) << uint32(GetStatus() == STATUS_IN_PROGRESS);
+    data << uint32(BG_WS_STATE_TIMER_ACTIVE) << false;
     data << uint32(BG_WS_STATE_TIMER) << uint32(GetMatchTime());
 
     data << uint32(BG_WS_FLAG_STATE_HORDE) << uint32(GetFlagState(TEAM_HORDE));
