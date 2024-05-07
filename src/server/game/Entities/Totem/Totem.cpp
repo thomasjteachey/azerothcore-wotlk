@@ -187,7 +187,7 @@ bool Totem::IsImmunedToSpellEffect(SpellInfo const* spellInfo, uint32 index) con
         return true;
     }
 
-    switch (spellInfo->Effects[index].ApplyAuraName)
+    switch (spellInfo->Effects[index].Effect)
     {
         // i think its wrong (xinef)
         //case SPELL_AURA_PERIODIC_LEECH:
