@@ -1078,7 +1078,6 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
 
     // pussywizard: on login it's not possible to go back to arena as a spectator, HandleMoveWorldportAckOpcode is not sent, so call it here
     pCurrChar->SetIsSpectator(false);
-    pCurrChar->RemoveAurasDueToSpell(45813);
 
     // xinef: do this after everything is loaded
     pCurrChar->ContinueTaxiFlight();
@@ -1110,6 +1109,12 @@ void WorldSession::HandlePlayerLoginFromDB(LoginQueryHolder const& holder)
             }
         }
     }
+
+    //preparation and instant cast stuff
+    pCurrChar->RemoveAura(32727);
+    pCurrChar->RemoveAura(44521);
+    pCurrChar->RemoveAura(45813);
+
 
     sScriptMgr->OnPlayerLogin(pCurrChar);
 
