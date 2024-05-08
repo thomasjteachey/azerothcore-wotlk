@@ -3919,7 +3919,7 @@ void Unit::_UpdateAutoRepeatSpell()
     }
 
     // Check "realtime" interrupts
-    if ((GetTypeId() == TYPEID_PLAYER && ToPlayer()->isMoving() && spellProto->Id != HUNTER_AUTOSHOOT) || IsNonMeleeSpellCast(false, false, true, spellProto->Id == HUNTER_AUTOSHOOT))
+    if ((GetTypeId() == TYPEID_PLAYER && ToPlayer()->isMoving()) || IsNonMeleeSpellCast(false, false, true, spellProto->Id == HUNTER_AUTOSHOOT))
     {
         // cancel wand shoot
         if (spellProto->Id != HUNTER_AUTOSHOOT)
@@ -3935,7 +3935,7 @@ void Unit::_UpdateAutoRepeatSpell()
     }
 
     // Apply delay (Hunter's autoshoot not affected)
-    if ((m_AutoRepeatFirstCast || isMoving()) && getAttackTimer(RANGED_ATTACK) < 500)
+    if (m_AutoRepeatFirstCast && getAttackTimer(RANGED_ATTACK) < 500)
     {
         setAttackTimer(RANGED_ATTACK, 500);
     }
