@@ -3929,15 +3929,15 @@ void Unit::_UpdateAutoRepeatSpell()
     }
 
     //hunter autoshot change
-    if ((m_currentSpells[CURRENT_GENERIC_SPELL] || m_currentSpells[CURRENT_CHANNELED_SPELL]) && getAttackTimer(RANGED_ATTACK) < 500)
+    if ((m_currentSpells[CURRENT_GENERIC_SPELL] || m_currentSpells[CURRENT_CHANNELED_SPELL]) && getAttackTimer(RANGED_ATTACK) < 500 * m_modAttackSpeedPct[RANGED_ATTACK])
     {
-        setAttackTimer(RANGED_ATTACK, 500);
+        setAttackTimer(RANGED_ATTACK, 500 * m_modAttackSpeedPct[RANGED_ATTACK]);
     }
 
     // Apply delay (Hunter's autoshoot not affected)
-    if (m_AutoRepeatFirstCast && getAttackTimer(RANGED_ATTACK) < 500)
+    if (m_AutoRepeatFirstCast && getAttackTimer(RANGED_ATTACK) < 500 * m_modAttackSpeedPct[RANGED_ATTACK])
     {
-        setAttackTimer(RANGED_ATTACK, 500);
+        setAttackTimer(RANGED_ATTACK, 500 * m_modAttackSpeedPct[RANGED_ATTACK]);
     }
 
     m_AutoRepeatFirstCast = false;
@@ -3956,7 +3956,7 @@ void Unit::_UpdateAutoRepeatSpell()
             {
                 if (result == SPELL_FAILED_MOVING)
                 {
-                    setAttackTimer(RANGED_ATTACK, 500);
+                    setAttackTimer(RANGED_ATTACK, 500 * m_modAttackSpeedPct[RANGED_ATTACK]);
                 }
                 else
                 {
