@@ -3953,7 +3953,16 @@ void Unit::_UpdateAutoRepeatSpell()
                 InterruptSpell(CURRENT_AUTOREPEAT_SPELL);
             }
             else if (GetTypeId() == TYPEID_PLAYER)
-                Spell::SendCastResult(ToPlayer(), spellProto, 1, result);
+            {
+                if (result == SPELL_FAILED_MOVING)
+                {
+                    setAttackTimer(RANGED_ATTACK, 500);
+                }
+                else
+                {
+                    Spell::SendCastResult(ToPlayer(), spellProto, 1, result);
+                }
+            }
 
             return;
         }
