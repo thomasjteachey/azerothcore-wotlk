@@ -3935,7 +3935,7 @@ void Unit::_UpdateAutoRepeatSpell()
     }
 
     // Apply delay (Hunter's autoshoot not affected)
-    if (m_AutoRepeatFirstCast && getAttackTimer(RANGED_ATTACK) < 500)
+    if ((m_AutoRepeatFirstCast || isMoving()) && getAttackTimer(RANGED_ATTACK) < 500)
     {
         setAttackTimer(RANGED_ATTACK, 500);
     }
