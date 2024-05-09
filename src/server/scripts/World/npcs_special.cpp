@@ -338,11 +338,6 @@ public:
             me->ApplySpellImmune(0, IMMUNITY_EFFECT, SPELL_EFFECT_KNOCK_BACK, true); //imune to knock aways like blast wave
         }
 
-        void JustEnteredCombat(Unit* who) override
-        {
-            _combatTimer[who->GetGUID()] = 6s;
-        }
-
         uint32 resetTimer;
 
         void Reset() override
@@ -359,38 +354,27 @@ public:
             Reset();
         }
 
-        void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType damageType, SpellSchoolMask) override
+        void DamageTaken(Unit*, uint32& damage, DamageEffectType, SpellSchoolMask) override
         {
+            resetTimer = 6000;
             damage = 0;
-
-            if (!attacker || damageType == DOT)
-                return;
-
-            _combatTimer[attacker->GetGUID()] = 6s;
         }
 
         void UpdateAI(uint32 diff) override
         {
-            for (auto itr = _combatTimer.begin(); itr != _combatTimer.end();)
+            if (!UpdateVictim())
+                return;
+
+            if (resetTimer <= diff)
             {
-                itr->second -= Milliseconds(diff);
-                if (itr->second <= 0s)
-                {
-                    // The attacker has not dealt any damage to the dummy for over 5 seconds. End combat.
-                    Player* p = ObjectAccessor::FindPlayer(itr->first);
-                    if (p)
-                    {
-                        p->SetInCombatWith(me, 0);
-                    }
-                }
-                else
-                    ++itr;
+                EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
+                resetTimer = 6000;
             }
+            else
+                resetTimer -= diff;
         }
 
         void MoveInLineOfSight(Unit* /*who*/) override { }
-    private:
-        std::unordered_map<ObjectGuid /*attackerGUID*/, Milliseconds /*combatTime*/> _combatTimer;
     };
 
     CreatureAI* GetAI(Creature* creature) const override
