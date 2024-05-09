@@ -91,6 +91,11 @@ bool ArenaSpectator::HandleSpectatorSpectateCommand(ChatHandler* handler, std::s
     if (player->InBattlegroundQueue())
         errors.push_back("Can't be queued for arena or bg.");
 
+    /*
+    if (player->GetGroup())
+        errors.push_back("Can't be in a group.");
+        */
+
     if (player->HasUnitState(UNIT_STATE_ISOLATED))
         errors.push_back("Can't be isolated.");
 
@@ -107,7 +112,6 @@ bool ArenaSpectator::HandleSpectatorSpectateCommand(ChatHandler* handler, std::s
 
     if (!player->IsAlive())
         errors.push_back("Must be alive.");
-
 
     const Unit::VisibleAuraMap* va = player->GetVisibleAuras();
     for (auto itr = va->begin(); itr != va->end(); ++itr)

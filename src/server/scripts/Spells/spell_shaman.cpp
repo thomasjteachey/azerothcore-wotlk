@@ -480,7 +480,7 @@ class spell_sha_sentry_totem : public AuraScript
 
     bool Validate(SpellInfo const* /*spell*/) override
     {
-        return ValidateSpellInfo({ SPELL_SHAMAN_BIND_SIGHT });
+        return ValidateSpellInfo({ 80867 });
     }
 
     void AfterRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
