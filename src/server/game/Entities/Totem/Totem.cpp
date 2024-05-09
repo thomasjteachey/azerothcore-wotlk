@@ -186,11 +186,12 @@ bool Totem::IsImmunedToSpellEffect(SpellInfo const* spellInfo, uint32 index) con
     {
         return true;
     }
-
-    switch (spellInfo->Effects[index].Effect)
+    if (!spellInfo->IsPositive())
     {
-        // i think its wrong (xinef)
-        //case SPELL_AURA_PERIODIC_LEECH:
+        switch (spellInfo->Effects[index].Effect)
+        {
+            // i think its wrong (xinef)
+            //case SPELL_AURA_PERIODIC_LEECH:
         case SPELL_EFFECT_APPLY_AURA:
         case SPELL_EFFECT_PERSISTENT_AREA_AURA:
         case SPELL_EFFECT_APPLY_AREA_AURA_PARTY:
@@ -200,6 +201,7 @@ bool Totem::IsImmunedToSpellEffect(SpellInfo const* spellInfo, uint32 index) con
             return true;
         default:
             break;
+        }
     }
 
     return Creature::IsImmunedToSpellEffect(spellInfo, index);
