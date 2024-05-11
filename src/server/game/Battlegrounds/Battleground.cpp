@@ -873,6 +873,9 @@ void Battleground::EndBattleground(PvPTeamId winnerTeamId)
             loser_money *= arenaMultiplier;
         }
 
+        uint32 thrallsSocksWinner = winner_honor;
+        uint32 thrallsSocksLoser = loser_honor;
+
         // Rewards
         // only grant rewards if battle has lasted 15 seconds
         if (GetStartDelayTime() <= 0 && GetStartTime() >= 15 * IN_MILLISECONDS)
@@ -883,6 +886,7 @@ void Battleground::EndBattleground(PvPTeamId winnerTeamId)
                 player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_WIN_BG, player->GetMapId());
                 player->RewardHonor(nullptr, 1, winner_honor);
                 player->ModifyMoney(winner_money);
+                player->AddItem(40752, thrallsSocksWinner);
 
                 for (int i = 20559; i <= 20575; i++)
                 {
@@ -901,6 +905,7 @@ void Battleground::EndBattleground(PvPTeamId winnerTeamId)
             {
                 player->RewardHonor(nullptr, 1, loser_honor);
                 player->ModifyMoney(loser_money);
+                player->AddItem(40752, thrallsSocksLoser);
             }
         }
 

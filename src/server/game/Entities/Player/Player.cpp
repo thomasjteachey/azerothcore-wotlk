@@ -6197,8 +6197,6 @@ void Player::SetArenaPoints(uint32 value)
 
 void Player::ModifyHonorPoints(int32 value, CharacterDatabaseTransaction trans)
 {
-    //add thrall's socks
-    AddItem(40752, value);
     int32 newValue = int32(GetHonorPoints()) + value;
     if (newValue < 0)
         newValue = 0;
