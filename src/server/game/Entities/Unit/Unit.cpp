@@ -10903,8 +10903,7 @@ void Unit::SetModelVisible(bool on)
             pl->SetVisibleItemSlot(EQUIPMENT_SLOT_RANGED, pl->GetWeaponForAttack(RANGED_ATTACK));
             if (pl->IsSpectator())
             {
-                //we reinitialize here to get spectator auras we removed
-                pl->SetIsSpectator(true);
+                AddAura(SPECTATOR_SPELL_SPEED, this);
             }
         }
         RemoveAurasDueToSpell(24401);
@@ -10916,8 +10915,11 @@ void Unit::SetModelVisible(bool on)
             pl->SetVisibleItemSlot(EQUIPMENT_SLOT_MAINHAND, nullptr);
             pl->SetVisibleItemSlot(EQUIPMENT_SLOT_OFFHAND, nullptr);
             pl->SetVisibleItemSlot(EQUIPMENT_SLOT_RANGED, nullptr);
+            if (pl->IsSpectator())
+            {
+                RemoveAllAuras();
+            }
         }
-        RemoveAllAuras();
         CastSpell(this, 24401, true);
     }
 }

@@ -15230,6 +15230,7 @@ void Player::SendDuelCountdown(uint32 counter)
 
 void Player::SetIsSpectator(bool on)
 {
+    SetModelVisible(true);
     if (on)
     {
         AddAura(SPECTATOR_SPELL_SPEED, this);
