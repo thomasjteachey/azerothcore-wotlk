@@ -6688,6 +6688,7 @@ ReputationRank Unit::GetReactionTo(Unit const* target, bool checkOriginalFaction
     Player const* selfPlayerOwner = GetAffectingPlayer();
     Player const* targetPlayerOwner = target->GetAffectingPlayer();
 
+
     // check forced reputation to support SPELL_AURA_FORCE_REACTION
     if (selfPlayerOwner)
     {
@@ -10892,10 +10893,33 @@ void Unit::SetVisible(bool x)
 
 void Unit::SetModelVisible(bool on)
 {
+    Player* pl = this->ToPlayer();
     if (on)
+    {
+        if (pl)
+        {
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_MAINHAND, pl->GetWeaponForAttack(BASE_ATTACK));
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_OFFHAND, pl->GetWeaponForAttack(OFF_ATTACK));
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_RANGED, pl->GetWeaponForAttack(RANGED_ATTACK));
+            if (pl->IsSpectator())
+            {
+                //we reinitialize here to get spectator auras we removed
+                pl->SetIsSpectator(true);
+            }
+        }
         RemoveAurasDueToSpell(24401);
+    }
     else
+    {
+        if (pl)
+        {
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_MAINHAND, nullptr);
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_OFFHAND, nullptr);
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_RANGED, nullptr);
+        }
+        RemoveAllAuras();
         CastSpell(this, 24401, true);
+    }
 }
 
 void Unit::UpdateSpeed(UnitMoveType mtype, bool forced)

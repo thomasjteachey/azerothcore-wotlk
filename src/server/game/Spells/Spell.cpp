@@ -5594,14 +5594,16 @@ void Spell::HandleEffects(Unit* pUnitTarget, Item* pItemTarget, GameObject* pGOT
 
 SpellCastResult Spell::CheckCast(bool strict)
 {
+    //spectator check
+    if (((Player const*)m_caster)->IsSpectator())
+    {
+        if (m_spellInfo->Id == SPECTATOR_SPELL_BINDSIGHT || m_spellInfo->Id == 24401)
+            return SPELL_CAST_OK;
+        return SPELL_FAILED_NOT_HERE;
+    }
     // check death state
     if (!m_caster->IsAlive() && !m_spellInfo->HasAttribute(SPELL_ATTR0_PASSIVE) && !(m_spellInfo->HasAttribute(SPELL_ATTR0_ALLOW_CAST_WHILE_DEAD) || (IsTriggered() && !m_triggeredByAuraSpell)))
         return SPELL_FAILED_CASTER_DEAD;
-
-    // Spectator check
-    if (m_caster->GetTypeId() == TYPEID_PLAYER)
-        if (((Player const*)m_caster)->IsSpectator() && m_spellInfo->Id != SPECTATOR_SPELL_BINDSIGHT)
-            return SPELL_FAILED_NOT_HERE;
 
     SpellCastResult res = SPELL_CAST_OK;
 
@@ -5943,7 +5945,7 @@ SpellCastResult Spell::CheckCast(bool strict)
     // - with greater than 10 min CD without SPELL_ATTR4_IGNORE_DEFAULT_ARENA_RESTRICTIONS flag
     // - with SPELL_ATTR4_NOT_IN_ARENA_OR_RATED_BATTLEGROUND flag
     if (m_spellInfo->HasAttribute(SPELL_ATTR4_NOT_IN_ARENA_OR_RATED_BATTLEGROUND) ||
-            (m_spellInfo->GetRecoveryTime() >= 10 * MINUTE * IN_MILLISECONDS && !m_spellInfo->HasAttribute(SPELL_ATTR4_IGNORE_DEFAULT_ARENA_RESTRICTIONS)))
+            (m_spellInfo->GetRecoveryTime() > 15 * MINUTE * IN_MILLISECONDS && !m_spellInfo->HasAttribute(SPELL_ATTR4_IGNORE_DEFAULT_ARENA_RESTRICTIONS)))
         if (MapEntry const* mapEntry = sMapStore.LookupEntry(m_caster->GetMapId()))
             if (mapEntry->IsBattleArena())
                 return SPELL_FAILED_NOT_IN_ARENA;
