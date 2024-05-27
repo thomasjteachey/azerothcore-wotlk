@@ -375,6 +375,14 @@ double inverse_of_normal_cdf(const double p, const double mu, const double sigma
 void Aura::SetHeartbeatDuration()
 {
     float probability = (rand() % 101) / 100.f;
+    if (probability < 0.01f)
+    {
+        probability = 0.01f;
+    }
+    if (probability > .99f)
+    {
+        probability = .99f;
+    }
     m_heartbeatDurationCap = inverse_of_normal_cdf(probability, 15160, 4713);
     std::string str = "heartbeatDuration: " + std::to_string(m_heartbeatDurationCap);
     sWorld->SendServerMessage(SERVER_MSG_STRING, str.c_str());
