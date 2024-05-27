@@ -1384,7 +1384,8 @@ bool Battleground::UpdatePlayerScore(Player* player, uint32 type, uint32 value, 
     else
     {
         //don't update bonus honor
-        //itr->second->UpdateScore(type, value);
+        if(type != SCORE_BONUS_HONOR)
+            itr->second->UpdateScore(type, value);
     }
 
     return true;
