@@ -4427,6 +4427,8 @@ void Player::ResurrectPlayer(float restore_percent, bool applySickness)
     // update visibility
     UpdateObjectVisibility();
 
+    applySickness = false;
+
     sScriptMgr->OnPlayerResurrect(this, restore_percent, applySickness);
 
     if (!applySickness)
