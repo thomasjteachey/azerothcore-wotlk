@@ -128,11 +128,8 @@ DiminishingGroup GetDiminishingReturnsGroupForSpell(SpellInfo const* spellproto,
             }
         case SPELLFAMILY_WARLOCK:
             {
-                // Curses/etc
-                if ((spellproto->SpellFamilyFlags[0] & 0x80000000) || (spellproto->SpellFamilyFlags[1] & 0x200))
-                    return DIMINISHING_LIMITONLY;
                 // Seduction
-                else if (spellproto->SpellFamilyFlags[1] & 0x10000000)
+                if (spellproto->SpellFamilyFlags[1] & 0x10000000)
                     return DIMINISHING_FEAR;
                 break;
             }
@@ -3172,6 +3169,7 @@ void SpellMgr::LoadSpellInfoCustomAttributes()
             case 24825: // Test Backstab
             case 58563: // Assassinate Restless Lookout
             case 63124: // quest There's Something About the Squire (13654)
+            case 9827: //pounce
                 spellInfo->AttributesCu |= SPELL_ATTR0_CU_REQ_CASTER_BEHIND_TARGET;
                 break;
             case 26029: // Dark Glare

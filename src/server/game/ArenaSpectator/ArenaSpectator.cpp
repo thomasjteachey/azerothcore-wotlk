@@ -194,6 +194,8 @@ bool ArenaSpectator::HandleSpectatorWatchCommand(ChatHandler* handler, std::stri
     if (WorldObject* o = player->GetViewpoint())
         if (Unit* u = o->ToUnit())
         {
+            player->TeleportTo(spectate->GetWorldLocation());
+            player->SetModelVisible(true);
             u->RemoveAurasByType(SPELL_AURA_BIND_SIGHT, player->GetGUID());
             player->RemoveAurasDueToSpell(SPECTATOR_SPELL_BINDSIGHT, player->GetGUID(), (1 << EFFECT_1));
 
@@ -230,7 +232,6 @@ void ArenaSpectator::CreatePacket(WorldPacket& data, std::string const& message)
 
 void ArenaSpectator::HandleResetCommand(Player* player)
 {
-    player->SetModelVisible(true);
     if (!player->FindMap() || !player->IsInWorld() || !player->FindMap()->IsBattleArena())
         return;
 

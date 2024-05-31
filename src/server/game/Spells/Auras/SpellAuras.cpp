@@ -375,7 +375,17 @@ double inverse_of_normal_cdf(const double p, const double mu, const double sigma
 void Aura::SetHeartbeatDuration()
 {
     float probability = (rand() % 101) / 100.f;
+    if (probability < 0.01f)
+    {
+        probability = 0.01f;
+    }
+    if (probability > .99f)
+    {
+        probability = .99f;
+    }
     m_heartbeatDurationCap = inverse_of_normal_cdf(probability, 15160, 4713);
+    std::string str = "heartbeatDuration: " + std::to_string(m_heartbeatDurationCap);
+    sWorld->SendServerMessage(SERVER_MSG_STRING, str.c_str());
 }
 
 void Aura::UpdateHeartbeatResist(uint32 diff, Unit* target)
@@ -383,8 +393,8 @@ void Aura::UpdateHeartbeatResist(uint32 diff, Unit* target)
     m_heartbeatDurationCap -= diff;
     if (m_heartbeatDurationCap <= 0)
     {
-        //std::string str = "removed " + std::to_string(this->GetId())+ " due to heartbeat resist";
-        //sWorld->SendServerMessage(SERVER_MSG_STRING, str.c_str());
+        std::string str = "removed " + std::to_string(this->GetId())+ " due to heartbeat resist";
+        sWorld->SendServerMessage(SERVER_MSG_STRING, str.c_str());
         target->RemoveAura(this, AURA_REMOVE_BY_CANCEL);
     }
 }

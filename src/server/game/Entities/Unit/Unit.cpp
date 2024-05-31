@@ -6688,6 +6688,7 @@ ReputationRank Unit::GetReactionTo(Unit const* target, bool checkOriginalFaction
     Player const* selfPlayerOwner = GetAffectingPlayer();
     Player const* targetPlayerOwner = target->GetAffectingPlayer();
 
+
     // check forced reputation to support SPELL_AURA_FORCE_REACTION
     if (selfPlayerOwner)
     {
@@ -10892,10 +10893,35 @@ void Unit::SetVisible(bool x)
 
 void Unit::SetModelVisible(bool on)
 {
+    Player* pl = this->ToPlayer();
     if (on)
+    {
+        if (pl)
+        {
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_MAINHAND, pl->GetWeaponForAttack(BASE_ATTACK));
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_OFFHAND, pl->GetWeaponForAttack(OFF_ATTACK));
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_RANGED, pl->GetWeaponForAttack(RANGED_ATTACK));
+            if (pl->IsSpectator())
+            {
+                AddAura(SPECTATOR_SPELL_SPEED, this);
+            }
+        }
         RemoveAurasDueToSpell(24401);
+    }
     else
+    {
+        if (pl)
+        {
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_MAINHAND, nullptr);
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_OFFHAND, nullptr);
+            pl->SetVisibleItemSlot(EQUIPMENT_SLOT_RANGED, nullptr);
+            if (pl->IsSpectator())
+            {
+                RemoveAllAuras();
+            }
+        }
         CastSpell(this, 24401, true);
+    }
 }
 
 void Unit::UpdateSpeed(UnitMoveType mtype, bool forced)
@@ -17253,11 +17279,13 @@ void Unit::PatchValuesUpdate(ByteBuffer& valuesUpdateBuf, BuildValuesCachePosPoi
                 // Allow targetting opposite faction in party when enabled in config
                 valuesUpdateBuf.put(posPointers.UnitFieldBytes2Pos, (m_uint32Values[UNIT_FIELD_BYTES_2] & ((UNIT_BYTE2_FLAG_SANCTUARY /*| UNIT_BYTE2_FLAG_AURAS | UNIT_BYTE2_FLAG_UNK5*/) << 8))); // this flag is at uint8 offset 1 !!
         }// pussywizard / Callmephil
+        /*
         else if (target->IsSpectator() && target->FindMap() && target->FindMap()->IsBattleArena() &&
                     (this->GetTypeId() == TYPEID_PLAYER || this->GetTypeId() == TYPEID_UNIT || this->GetTypeId() == TYPEID_DYNAMICOBJECT))
         {
                 valuesUpdateBuf.put(posPointers.UnitFieldBytes2Pos, (m_uint32Values[UNIT_FIELD_BYTES_2] & 0xFFFFF2FF)); // clear UNIT_BYTE2_FLAG_PVP, UNIT_BYTE2_FLAG_FFA_PVP, UNIT_BYTE2_FLAG_SANCTUARY
         }
+        */
     }
 
     // UNIT_FIELD_FACTIONTEMPLATE
@@ -17271,11 +17299,13 @@ void Unit::PatchValuesUpdate(ByteBuffer& valuesUpdateBuf, BuildValuesCachePosPoi
                 // pretend that all other HOSTILE players have own faction, to allow follow, heal, rezz (trade wont work)
                 valuesUpdateBuf.put(posPointers.UnitFieldFactionTemplatePos, uint32(target->GetFaction()));
         }// pussywizard / Callmephil
+        /*
         else if (target->IsSpectator() && target->FindMap() && target->FindMap()->IsBattleArena() &&
                     (this->GetTypeId() == TYPEID_PLAYER || this->GetTypeId() == TYPEID_UNIT || this->GetTypeId() == TYPEID_DYNAMICOBJECT))
         {
             valuesUpdateBuf.put(posPointers.UnitFieldFactionTemplatePos, uint32(target->GetFaction()));
         }
+        */
     }
 
     sScriptMgr->OnPatchValuesUpdate(this, valuesUpdateBuf, posPointers, target);
