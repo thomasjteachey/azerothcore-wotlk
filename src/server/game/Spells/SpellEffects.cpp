@@ -1391,9 +1391,15 @@ void Spell::EffectJumpDest(SpellEffIndex effIndex)
         return;
     }
 
+    if (m_spellInfo->Id == 81271)
+    {
+        speedZ = sWorld->getIntConfig(CONFIG_CENTURION_LEAP_Z_SPEED);
+        speedXY = sWorld->getIntConfig(CONFIG_CENTURION_LEAP_XY_SPEED);
+    }
+
     if (m_spellInfo->Id == 57604) // death grip
     {
-        speedZ = 3.0f;
+        speedZ = 20.0f;
         speedXY = 50.0f;
     }
 
@@ -2569,6 +2575,7 @@ void Spell::EffectProficiency(SpellEffIndex /*effIndex*/)
 
 void Spell::EffectSummonType(SpellEffIndex effIndex)
 {
+    return;
     if (effectHandleMode != SPELL_EFFECT_HANDLE_HIT)
         return;
 

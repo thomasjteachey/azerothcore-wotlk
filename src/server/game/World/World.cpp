@@ -1446,6 +1446,10 @@ void World::LoadConfigSettings(bool reload)
     _int_configs[CONFIG_CENTURION_BG_REWARD_HONOR_FLAG_CAP] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardHonorFlagCap", 10);
     _float_configs[CONFIG_CENTURION_BG_ARENA_REWARD_MULTIPLIER] = sConfigMgr->GetFloatDefault("Centurion.Battleground.ArenaRewardMultiplier", .2f);
 
+    _int_configs[CONFIG_CENTURION_LEAP_XY_SPEED] = sConfigMgr->GetIntDefault("Centurion.LeapXYSpeed", 100);
+    _int_configs[CONFIG_CENTURION_LEAP_Z_SPEED] = sConfigMgr->GetIntDefault("Centurion.LeapZSpeed", 20);
+    _int_configs[CONFIG_CENTURION_BG_REWARD_HONOR_LOSER] = sConfigMgr->GetIntDefault("Centurion.Battleground.RewardHonorLoser", 10);
+
     _int_configs[CONFIG_WAYPOINT_MOVEMENT_STOP_TIME_FOR_PLAYER] = sConfigMgr->GetOption<int32>("WaypointMovementStopTimeForPlayer", 120);
 
     _int_configs[CONFIG_DUNGEON_ACCESS_REQUIREMENTS_PRINT_MODE]              = sConfigMgr->GetOption<int32>("DungeonAccessRequirements.PrintMode", 1);
