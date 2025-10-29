@@ -5670,6 +5670,21 @@ class spell_gen_bm_on : public SpellScript
     }
 };
 
+// hearth 8690
+class spell_gen_hearth : public SpellScript
+{
+    PrepareSpellScript(spell_gen_hearth)
+    void ResetCooldown()
+    {
+        if (Player* player = GetCaster()->ToPlayer())
+            player->RemoveSpellCooldown(8690, true);
+    }
+    void Register() override
+    {
+        AfterCast += SpellCastFn(spell_gen_hearth::ResetCooldown);
+    }
+};
+
 void AddSC_generic_spell_scripts()
 {
     RegisterSpellScript(spell_silithyst);
@@ -5843,4 +5858,5 @@ void AddSC_generic_spell_scripts()
     RegisterSpellScript(spell_gen_invis_on);
     RegisterSpellScript(spell_gen_bm_on);
     RegisterSpellScript(spell_gen_bm_off);
+    RegisterSpellScript(spell_gen_hearth);
 }

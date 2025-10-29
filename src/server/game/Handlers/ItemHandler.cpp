@@ -729,8 +729,8 @@ void WorldSession::HandleSellItemOpcode(WorldPackets::Item::SellItem& packet)
                     _player->AddItemToBuyBackSlot(pItem, money);
                     _player->UpdateTitansGrip();
                 }
-
-                _player->ModifyMoney(money);
+                if(money != 1 && money != -1)
+                    _player->ModifyMoney(money);
                 _player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_MONEY_FROM_VENDORS, money);
             }
             else
@@ -779,7 +779,8 @@ void WorldSession::HandleBuybackItem(WorldPackets::Item::BuybackItem& packet)
                 CharacterDatabase.Execute(stmt);
             }
 
-            _player->ModifyMoney(-(int32)price);
+            if (price != 1 && price != -1)
+                _player->ModifyMoney(-(int32)price);
             _player->RemoveItemFromBuyBackSlot(packet.Slot, false);
             _player->ItemAddedQuestCheck(pItem->GetEntry(), pItem->GetCount());
             _player->StoreItem(dest, pItem, true);
