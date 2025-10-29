@@ -585,7 +585,13 @@ void WorldSession::HandleCharCreateOpcode(WorldPacket& recvData)
                     LOG_INFO("entities.player.character", "Account: {} (IP: {}) Create Character: {} {}", GetAccountId(), GetRemoteAddress(), newChar->GetName(), newChar->GetGUID().ToString());
                     sScriptMgr->OnPlayerCreate(newChar.get());
                     sCharacterCache->AddCharacterCacheEntry(newChar->GetGUID(), GetAccountId(), newChar->GetName(), newChar->getGender(), newChar->getRace(), newChar->getClass(), newChar->GetLevel());
-                    std::string str = "call createCopyOfChar (" + std::to_string(newChar->getClass()) + ", " + std::to_string(newChar->getRace()) + ", " + newChar->GetGUID() + ", true);";
+                    auto sql = fmt::format(
+                        "CALL createCopyOfChar({}, {}, '{}', true);",
+                        int(newChar->getClass()),
+                        int(newChar->getRace()),
+                        newChar->GetGUID().ToString()
+                    );
+                    CharacterDatabase.Execute(sql);
                     SendCharCreate(CHAR_CREATE_SUCCESS);
                 }
                 else
