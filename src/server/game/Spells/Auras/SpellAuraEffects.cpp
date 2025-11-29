@@ -5106,6 +5106,11 @@ void AuraEffect::HandleAuraModAttackPower(AuraApplication const* aurApp, uint8 m
     Unit* target = aurApp->GetTarget();
 
     target->HandleStatModifier(UNIT_MOD_ATTACK_POWER, TOTAL_VALUE, float(GetAmount()), apply);
+
+    // Force a fresh melee attack power calculation for players to ensure temporary debuffs
+    // such as Demoralizing Roar fully clear their impact once the aura expires.
+    if (target->IsPlayer())
+        target->ToPlayer()->UpdateAttackPowerAndDamage(false);
 }
 
 void AuraEffect::HandleAuraModRangedAttackPower(AuraApplication const* aurApp, uint8 mode, bool apply) const
