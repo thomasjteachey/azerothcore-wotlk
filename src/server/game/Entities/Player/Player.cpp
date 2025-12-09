@@ -5822,6 +5822,20 @@ void Player::CheckAreaExploreAndOutdoor()
 
 TeamId Player::TeamIdForRace(uint8 race)
 {
+    if (ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(race))
+    {
+        switch (rEntry->TeamID)
+        {
+            case 1:
+                return TEAM_HORDE;
+            case 7:
+                return TEAM_ALLIANCE;
+        }
+        LOG_ERROR("entities.player", "Race ({}) has wrong teamid ({}) in DBC: wrong DBC files?", uint32(race), rEntry->TeamID);
+    }
+    else
+        LOG_ERROR("entities.player", "Race ({}) not found in DBC: wrong DBC files?", uint32(race));
+
     return TEAM_ALLIANCE;
 }
 
