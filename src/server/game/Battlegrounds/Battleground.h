@@ -174,7 +174,7 @@ enum BattlegroundStartTimeIntervals
     BG_START_DELAY_NONE             = 0,                    // ms
 };
 
-#define BATTLEGROUND_UPDATE_INTERVAL 1000
+#define BATTLEGROUND_UPDATE_INTERVAL 16
 
 enum BattlegroundBuffObjects
 {
